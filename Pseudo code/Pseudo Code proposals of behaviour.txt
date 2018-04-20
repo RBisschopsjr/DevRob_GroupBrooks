@@ -31,7 +31,22 @@ while time<20 and object not found:
 updateStrategyPreference
 
 pseudo code: train FaceGazing
-...
+for d number of trials:
+	while not face found:
+		findFace()
+	detectGazeDirection
+	while not object found and time<20:
+		pickDirectionGivenGazeDirection
+		if face found:
+		detectGazeDirection
+		update
+
+	
 
 pseudo code: train randomgazing
-...
+for d number of trials:
+	while not face found:
+		findFace()
+	while not object found and time<20:
+		searchForObject
+	update
