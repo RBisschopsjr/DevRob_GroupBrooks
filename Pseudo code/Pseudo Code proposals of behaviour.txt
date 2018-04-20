@@ -1,0 +1,37 @@
+Pseudo code end performance(?)
+
+introduce itself/confirm start program
+train face gazing
+confirm finishing face gazing
+train random gazing
+confirm finishing random gazing.
+for c number of trials:
+	while not face found:
+		findFace()
+	random= takeRandomNumberOnPreference
+	PerformBehaviour(random)
+	state if ball was found
+shut down
+
+Pseudo Code performBehaviour
+
+performBehaviour(randomSearch):
+while time<20 and object not found:
+	time+1
+	rotateHeadSlightlyInRandomDirection
+if objectFound
+	confirm
+updateStrategyPreference
+
+performBehaviour(FaceGazing):
+while time<20 and object not found:
+	time+1
+	direction = getRandomDirectionBasedOnProbAndGaze
+	rotate(direction)
+updateStrategyPreference
+
+pseudo code: train FaceGazing
+...
+
+pseudo code: train randomgazing
+...
