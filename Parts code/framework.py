@@ -16,8 +16,9 @@ global headJointsHori
 global headJointsVerti
 global videoProxy
 global pythonBroker
+global postureProxy
 PORT=9559
-IP="192.168.1.103"
+IP="192.168.1.102"
 memory = ALProxy("ALMemory", IP, PORT)
 tts =naoqi.ALProxy("ALTextToSpeech", IP, PORT)
 motionProxy = naoqi.ALProxy("ALMotion", IP, PORT)
@@ -25,6 +26,7 @@ headJointsHori = "HeadYaw"
 headJointsVerti = "HeadPitch"
 videoProxy = naoqi.ALProxy('ALVideoDevice', IP, PORT)
 pythonBroker = ALBroker("pythonBroker", "0.0.0.0", 9600, IP, PORT)
+postureProxy = naoqi.ALProxy("ALRobotPosture", IP, PORT)
 
 ##for c number of trials:
 ##	while not face found:
@@ -67,7 +69,7 @@ def randomGaze():
     cam = videoProxy.subscribeCamera(cam_name,cam_type,res,colspace,fps)
 
     timeSinceStartMovement = time.time()
-    while (time.time-timeSinceStartMovement)<20
+    while (time.time-timeSinceStartMovement)<20:
 
         #image_container contains iinfo about the image
         image_container = videoProxy.getImageRemote(cam)
@@ -153,7 +155,8 @@ if __name__ == "__main__":
         postureProxy.goToPosture("Sit", 0.5)
         motionProxy.rest()
         pythonBroker.shutdown()
-    except:
+    except Exception as e:
+        print e
         postureProxy.goToPosture("Sit", 0.5)
         motionProxy.rest()
         pythonBroker.shutdown()
