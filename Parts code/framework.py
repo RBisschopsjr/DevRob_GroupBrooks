@@ -18,7 +18,7 @@ global videoProxy
 global pythonBroker
 global postureProxy
 PORT=9559
-IP="192.168.1.102"
+IP="192.168.1.143"
 memory = ALProxy("ALMemory", IP, PORT)
 tts =naoqi.ALProxy("ALTextToSpeech", IP, PORT)
 motionProxy = naoqi.ALProxy("ALMotion", IP, PORT)
@@ -38,10 +38,11 @@ postureProxy = naoqi.ALProxy("ALRobotPosture", IP, PORT)
 
 #TODO: Implement face detection.
 def faceFound():
-    return randint(0,1)==1
+    return random.randint(0,1)==1
 
 def findFace():
     while not faceFound():
+        isAbsolute=True
         vertiRand = random.uniform(-0.5,0.5)
         horiRand = random.uniform(-0.5,0.5)
         motionProxy.angleInterpolation(headJointsHori, horiRand, [0.5], isAbsolute)
@@ -49,11 +50,12 @@ def findFace():
 
 #TODO: Implement determining what behaviour to pick.
 def getChoice():
-    return randint(0,1)==1
+    return random.randint(0,1)==1
 
 #TODO: Implement finding object through gaze.
 def faceGaze():
     tts.say("I would now perform face gaze if it was implemented.")
+    return 20
 
 def randomGaze():
     cam_name="camera"   #Creates an identifier for the camera subscription
@@ -69,9 +71,9 @@ def randomGaze():
     cam = videoProxy.subscribeCamera(cam_name,cam_type,res,colspace,fps)
 
     timeSinceStartMovement = time.time()
-    while (time.time-timeSinceStartMovement)<20:
-
-        #image_container contains info about the image
+    isAbsolute=True
+    while (time.time()-timeSinceStartMovement)<20:
+        #image_container contains iinfo about the image
         image_container = videoProxy.getImageRemote(cam)
             
         #get image width and height
@@ -86,17 +88,17 @@ def randomGaze():
         cv2.imwrite("ballimage.png", image)
         image=cv2.imread("ballimage.png")
         
-        lower_blue = np.array([70,50,50], dtype = np.uint8)
-        upper_blue = np.array([170,255,255], dtype=np.uint8)
+        lower_green = np.array([36,100,100], dtype = np.uint8)
+        upper_green = np.array([86,255,255], dtype=np.uint8)
         
         #convert to a hsv colorspace
         hsvImage=cv2.cvtColor(image,cv2.COLOR_BGR2HSV)
         
         #Create a treshold mask
-        color_mask=cv2.inRange(hsvImage,lower_blue,upper_blue)
+        color_mask=cv2.inRange(hsvImage,lower_green,upper_green)
         
         #apply the mask on the image
-        blue_image = cv2.bitwise_and(image,image,mask=color_mask)
+        green_image = cv2.bitwise_and(image,image,mask=color_mask)
         
         kernel=np.ones((9,9),np.uint8)
         #Remove small objects
@@ -111,7 +113,7 @@ def randomGaze():
         blue_image = cv2.bitwise_and(image,image,mask=smoothed_mask)
         
         #Get the grayscale image (last channel of the HSV image
-        gray_image = blue_image[:,:,2]
+        gray_image = green_image[:,:,2]
         
         #Use a hough transform to find circular objects in the image.
         circles = cv2.HoughCircles(
@@ -123,11 +125,12 @@ def randomGaze():
             param2=20,              #Accumulator threshold: smaller = the more (false) circles
             minRadius=5,            #Minimum circle radius
             maxRadius=100)          #Maximum circle radius
-        try:
+        if circles is not None:
             circle = circles[0,:][0]
             tts.say("I found the ball")
             return time.time()-timeSinceStartMovement
-        except: #TODO: find the exception for not seeing blue ball.
+        else: #TODO: find the exception for not seeing green ball.
+            print circles
             vertiRand = random.uniform(-0.5,0.5)
             horiRand = random.uniform(-0.5,0.5)
             motionProxy.angleInterpolation(headJointsHori, horiRand, [0.5], isAbsolute)
@@ -138,11 +141,13 @@ def randomGaze():
 #End of randomGaze function.
 
 if __name__ == "__main__":
-    tts.say("Brooks framework demonstration start")
-    tts.say("First, I would start training gaze detection.")
-    tts.say("For now, I will skip that.")
+    #tts.say("Brooks framework demonstration start")
+    #tts.say("First, I would start training gaze detection.")
+    #tts.say("For now, I will skip that.")
     try:
-        for i in range(5):
+        motionProxy.setStiffnesses(headJointsHori, 0.8) #Set stiffness of limbs.
+        motionProxy.setStiffnesses(headJointsVerti,0.8)
+        for i in range(0):
             findFace()
             choice = getChoice()
             if choice:
@@ -150,7 +155,7 @@ if __name__ == "__main__":
             else:
                 result=randomGaze()
             tts.say("Time was")
-            tts.say(result)
+            tts.say(str(round(result)))
             tts.say("Trial done")
         postureProxy.goToPosture("Sit", 0.5)
         motionProxy.rest()
