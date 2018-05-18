@@ -110,7 +110,7 @@ def randomGaze():
         
         #Apply our (smoothend and denoised) mask
         #to our original image to get everything that is blue.
-        blue_image = cv2.bitwise_and(image,image,mask=smoothed_mask)
+        green_image = cv2.bitwise_and(image,image,mask=smoothed_mask)
         
         #Get the grayscale image (last channel of the HSV image
         gray_image = green_image[:,:,2]
@@ -147,7 +147,7 @@ if __name__ == "__main__":
     try:
         motionProxy.setStiffnesses(headJointsHori, 0.8) #Set stiffness of limbs.
         motionProxy.setStiffnesses(headJointsVerti,0.8)
-        for i in range(0):
+        for i in range(1):
             findFace()
             choice = getChoice()
             if choice:
