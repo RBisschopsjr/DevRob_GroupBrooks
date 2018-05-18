@@ -56,8 +56,8 @@ image = np.array(values, np.uint8).reshape((height, width, 3))
 cv2.imwrite("faceimage.png", image)
 image = cv2.imread("faceimage.png")
 
-face_cascade = cv2.CascadeClassifier('C:\Users\gebruiker\Documents\Master\Developmental Robotics\opencv\data\haarcascades\haarcascade_frontalface_default.xml')
-eye_cascade = cv2.CascadeClassifier('C:\Users\gebruiker\Documents\Master\Developmental Robotics\opencv\data\haarcascades\haarcascade_eye.xml')
+face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+eye_cascade = cv2.CascadeClassifier('haarcascade_eye.xml')
 
 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
