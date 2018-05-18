@@ -69,7 +69,7 @@ def randomGaze():
     timeSinceStartMovement = time.time()
     while (time.time-timeSinceStartMovement)<20
 
-        #image_container contains iinfo about the image
+        #image_container contains info about the image
         image_container = videoProxy.getImageRemote(cam)
             
         #get image width and height
