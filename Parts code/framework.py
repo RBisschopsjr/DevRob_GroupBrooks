@@ -36,12 +36,50 @@ postureProxy = naoqi.ALProxy("ALRobotPosture", IP, PORT)
 ##	state if ball was found
 ##shut down
 
-#TODO: Implement face detection.
-def faceFound():
-    return random.randint(0,1)==1
-
 def findFace():
-    while not faceFound():
+    cam_name = "camera"  # Creates an identifier for the camera subscription
+    cam_type = 0  # 0 for top camera, 1 for bottom camera
+    res = 1  # 320x240
+    colspace = 13  # BGR colorspace
+    fps = 10  # The requested frames per second
+
+    cams = videoProxy.getSubscribers()
+    for cam in cams:
+        videoProxy.unsubscribe(cam)
+        
+    cam = videoProxy.subscribeCamera(cam_name, cam_type, res, colspace, fps)
+
+    while True:
+        # image_container contains info about the image
+        image_container = videoProxy.getImageRemote(cam)
+
+        # get image width and height
+        width = image_container[0]
+        height = image_container[1]
+
+        # the 6th element contains the pixel data
+        values = map(ord, list(image_container[6]))
+
+        image = np.array(values, np.uint8).reshape((height, width, 3))
+
+        cv2.imwrite("faceimage.png", image)
+        image = cv2.imread("faceimage.png")
+
+        face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+        eye_cascade = cv2.CascadeClassifier('haarcascade_eye.xml')
+
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+        if len(faces) > 0 :
+            for (x,y,w,h) in faces:
+                cv2.rectangle(image,(x,y),(x+w,y+h),(255,0,0),2)
+                roi_gray = gray[y:y+h, x:x+w]
+                roi_color = image[y:y+h, x:x+w]
+                eyes = eye_cascade.detectMultiScale(roi_gray)
+                for (ex,ey,ew,eh) in eyes:
+                    cv2.rectangle(roi_color,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
+            return
         isAbsolute=True
         vertiRand = random.uniform(-0.5,0.5)
         horiRand = random.uniform(-0.5,0.5)
@@ -130,7 +168,6 @@ def randomGaze():
             tts.say("I found the ball")
             return time.time()-timeSinceStartMovement
         else: #TODO: find the exception for not seeing green ball.
-            print circles
             vertiRand = random.uniform(-0.5,0.5)
             horiRand = random.uniform(-0.5,0.5)
             motionProxy.angleInterpolation(headJointsHori, horiRand, [0.5], isAbsolute)
