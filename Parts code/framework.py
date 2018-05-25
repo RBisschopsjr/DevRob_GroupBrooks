@@ -18,7 +18,7 @@ global videoProxy
 global pythonBroker
 global postureProxy
 PORT=9559
-IP="192.168.1.143"
+IP="192.168.1.102"
 memory = ALProxy("ALMemory", IP, PORT)
 tts =naoqi.ALProxy("ALTextToSpeech", IP, PORT)
 motionProxy = naoqi.ALProxy("ALMotion", IP, PORT)
@@ -36,7 +36,7 @@ postureProxy = naoqi.ALProxy("ALRobotPosture", IP, PORT)
 ##	state if ball was found
 ##shut down
 
-def findFace():
+def setUpCam():
     cam_name = "camera"  # Creates an identifier for the camera subscription
     cam_type = 0  # 0 for top camera, 1 for bottom camera
     res = 1  # 320x240
@@ -48,6 +48,10 @@ def findFace():
         videoProxy.unsubscribe(cam)
         
     cam = videoProxy.subscribeCamera(cam_name, cam_type, res, colspace, fps)
+    return cam
+
+def findFace():
+    cam = setUpCam()
 
     while True:
         # image_container contains info about the image
@@ -79,10 +83,15 @@ def findFace():
                 eyes = eye_cascade.detectMultiScale(roi_gray)
                 for (ex,ey,ew,eh) in eyes:
                     cv2.rectangle(roi_color,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
-            return
+            tts.say("Found you")
+            try:
+                return faces[0], eyes[0]
+            except:
+                return faces[0], None
         isAbsolute=True
         vertiRand = random.uniform(-0.5,0.5)
         horiRand = random.uniform(-0.5,0.5)
+        print horiRand
         motionProxy.angleInterpolation(headJointsHori, horiRand, [0.5], isAbsolute)
         motionProxy.angleInterpolation(headJointsVerti, vertiRand, [0.5], isAbsolute)
 
@@ -91,22 +100,16 @@ def getChoice():
     return random.randint(0,1)==1
 
 #TODO: Implement finding object through gaze.
-def faceGaze():
-    tts.say("I would now perform face gaze if it was implemented.")
+def faceGaze(face):
+    tts.say("Testing direction")
+    x,y = getDirection(face[0]-100.0, face[1]-45.0)
+    isAbsolute=True
+    motionProxy.angleInterpolation(headJointsVerti, y, [0.5], isAbsolute)
+    motionProxy.angleInterpolation(headJointsHori, x, [0.5], isAbsolute)
     return 20
 
 def randomGaze():
-    cam_name="camera"   #Creates an identifier for the camera subscription
-    cam_type = 0        #0 for top camera, 1 for bottom camera
-    res =1              # 320x240
-    colspace=13         #BGR colorspace
-    fps=10              #The requested frames per second
-
-    cams = videoProxy.getSubscribers()
-    for cam in cams:
-        videoProxy.unsubscribe(cam)
-
-    cam = videoProxy.subscribeCamera(cam_name,cam_type,res,colspace,fps)
+    cam = setUpCam()
 
     timeSinceStartMovement = time.time()
     isAbsolute=True
@@ -177,18 +180,27 @@ def randomGaze():
 
 #End of randomGaze function.
 
+def getDirection(x,y):
+    while x>1 or y>1 or x<-1 or y<-1:
+        x=x/10
+        y=y/10
+    return x, y
+
 if __name__ == "__main__":
     #tts.say("Brooks framework demonstration start")
     #tts.say("First, I would start training gaze detection.")
     #tts.say("For now, I will skip that.")
+    postureProxy.goToPosture("Sit", 0.5)
     try:
         motionProxy.setStiffnesses(headJointsHori, 0.8) #Set stiffness of limbs.
         motionProxy.setStiffnesses(headJointsVerti,0.8)
-        for i in range(1):
-            findFace()
+        for i in range(5):
+            face, eyes =findFace()
+            print face
+            print eyes
             choice = getChoice()
             if choice:
-                result=faceGaze()
+                result=faceGaze(face)
             else:
                 result=randomGaze()
             tts.say("Time was")
