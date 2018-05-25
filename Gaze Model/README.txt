@@ -1,4 +1,4 @@
-GazeFollow Source Code
+## GazeFollow Source Code
 http://gazefollow.csail.mit.edu
 
 Installation:
