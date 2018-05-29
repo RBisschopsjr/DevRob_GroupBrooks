@@ -18,7 +18,7 @@ global videoProxy
 global pythonBroker
 global postureProxy
 PORT=9559
-IP="192.168.1.102"
+IP="192.168.1.103"
 memory = ALProxy("ALMemory", IP, PORT)
 tts =naoqi.ALProxy("ALTextToSpeech", IP, PORT)
 motionProxy = naoqi.ALProxy("ALMotion", IP, PORT)
@@ -91,19 +91,21 @@ def findFace():
         isAbsolute=True
         vertiRand = random.uniform(-0.5,0.5)
         horiRand = random.uniform(-0.5,0.5)
-        print horiRand
         motionProxy.angleInterpolation(headJointsHori, horiRand, [0.5], isAbsolute)
         motionProxy.angleInterpolation(headJointsVerti, vertiRand, [0.5], isAbsolute)
 
 #TODO: Implement determining what behaviour to pick.
 def getChoice():
-    return random.randint(0,1)==1
+    return True
+    #return random.randint(0,1)==1
 
 #TODO: Implement finding object through gaze.
 def faceGaze(face):
     tts.say("Testing direction")
-    x,y = getDirection(face[0]-100.0, face[1]-45.0)
-    isAbsolute=True
+    x,y = getDirection(-face[0]-100.0, -face[1]-45.0)
+    isAbsolute=False
+    print y
+    print x
     motionProxy.angleInterpolation(headJointsVerti, y, [0.5], isAbsolute)
     motionProxy.angleInterpolation(headJointsHori, x, [0.5], isAbsolute)
     return 20
