@@ -1,1 +1,0 @@
-testvar = 'called form py'
