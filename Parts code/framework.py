@@ -46,7 +46,7 @@ def setUpCam():
     cams = videoProxy.getSubscribers()
     for cam in cams:
         videoProxy.unsubscribe(cam)
-        
+
     cam = videoProxy.subscribeCamera(cam_name, cam_type, res, colspace, fps)
     return cam
 
@@ -118,31 +118,31 @@ def randomGaze():
     while (time.time()-timeSinceStartMovement)<20:
         #image_container contains iinfo about the image
         image_container = videoProxy.getImageRemote(cam)
-            
+
         #get image width and height
         width=image_container[0]
         height=image_container[1]
-        
+
         #the 6th element contains the pixel data
         values = map(ord,list(image_container[6]))
 
         image=np.array(values, np.uint8).reshape((height, width,3))
-        
+
         cv2.imwrite("ballimage.png", image)
         image=cv2.imread("ballimage.png")
-        
+
         lower_green = np.array([36,100,100], dtype = np.uint8)
         upper_green = np.array([86,255,255], dtype=np.uint8)
-        
+
         #convert to a hsv colorspace
         hsvImage=cv2.cvtColor(image,cv2.COLOR_BGR2HSV)
-        
+
         #Create a treshold mask
         color_mask=cv2.inRange(hsvImage,lower_green,upper_green)
-        
+
         #apply the mask on the image
         green_image = cv2.bitwise_and(image,image,mask=color_mask)
-        
+
         kernel=np.ones((9,9),np.uint8)
         #Remove small objects
         opening =cv2.morphologyEx(color_mask,cv2.MORPH_OPEN,kernel)
@@ -150,14 +150,14 @@ def randomGaze():
         closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
         #Apply a blur to smooth the edges
         smoothed_mask = cv2.GaussianBlur(closing, (9,9),0)
-        
+
         #Apply our (smoothend and denoised) mask
         #to our original image to get everything that is blue.
         green_image = cv2.bitwise_and(image,image,mask=smoothed_mask)
-        
+
         #Get the grayscale image (last channel of the HSV image
         gray_image = green_image[:,:,2]
-        
+
         #Use a hough transform to find circular objects in the image.
         circles = cv2.HoughCircles(
             gray_image,             #Input image to perform the transformation on
