@@ -113,12 +113,15 @@ def faceGaze(face):
     tts.say("Testing direction")
     print 'get Gaze'
     # x,y = getDirection(-face[0]-100.0, -face[1]-45.0)
-    x_val = float(face[0]/320.0)
-    y_val = float(face[1]/240.0)
-    print x_val, y_val
-    out = eng.callMatGaze('faceimage.png', x_val, y_val, nargout=2)
+    x_old = float(face[0]/320.0)
+    y_old = float(face[1]/240.0)
+    print x_old, y_old
+    out = eng.callMatGaze('faceimage.png', x_old, y_old, nargout=2)
     print '>>>>> Gaze Postition: ',out
     #output is in Y, X format
+    x_new = out[1]
+    y_new = out[0]
+
     isAbsolute=False
     motionProxy.angleInterpolation(headJointsVerti, out[0]/1000.0, [0.5], isAbsolute)
     motionProxy.angleInterpolation(headJointsHori, out[1]/1000.0, [0.5], isAbsolute)
