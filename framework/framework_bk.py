@@ -76,15 +76,16 @@ def findFace():
 
         faces = face_cascade.detectMultiScale(gray, 1.3, 5)
         if len(faces) > 0 :
-            for (x,y,w,h) in faces:
-                cv2.rectangle(image,(x,y),(x+w,y+h),(255,0,0),2)
-                roi_gray = gray[y:y+h, x:x+w]
-                roi_color = image[y:y+h, x:x+w]
-                eyes = eye_cascade.detectMultiScale(roi_gray)
-                for (ex,ey,ew,eh) in eyes:
-                    cv2.rectangle(roi_color,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
+##          for (x,y,w,h) in faces:
+##              cv2.rectangle(image,(x,y),(x+w,y+h),(255,0,0),2)
+##              roi_gray = gray[y:y+h, x:x+w]
+##              roi_color = image[y:y+h, x:x+w]
+##              eyes = eye_cascade.detectMultiScale(roi_gray)
+##              for (ex,ey,ew,eh) in eyes:
+##                    cv2.rectangle(roi_color,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
             tts.say("Found you")
             try:
+                print faces[0],eyes[0]
                 return faces[0], eyes[0]
             except:
                 return faces[0], None
@@ -102,7 +103,8 @@ def getChoice():
 #TODO: Implement finding object through gaze.
 def faceGaze(face):
     tts.say("Testing direction")
-    y,x = -(face[0]-120.0)/240.0, (face[1]-160.0)/320.0
+    #y,x = -(face[0]-120.0)/240.0, (face[1]-160.0)/320.0
+    x,y=-(face[0]+face[2]/2-160.0)/320.0, (face[0]+face[3]/2-120.0)/240.0
     isAbsolute=False
     motionProxy.angleInterpolation(headJointsVerti, y, [0.5], isAbsolute)
     motionProxy.angleInterpolation(headJointsHori, x, [0.5], isAbsolute)
@@ -189,10 +191,8 @@ if __name__ == "__main__":
     try:
         motionProxy.setStiffnesses(headJointsHori, 0.8) #Set stiffness of limbs.
         motionProxy.setStiffnesses(headJointsVerti,0.8)
-        for i in range(5):
+        for i in range(1):
             face, eyes =findFace()
-            print face
-            print eyes
             choice = getChoice()
             if choice:
                 result=faceGaze(face)
