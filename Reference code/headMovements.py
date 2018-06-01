@@ -8,7 +8,7 @@ from naoqi import ALProxy
 from naoqi import ALBroker
 
 PORT=9559
-IP="192.168.1.103"
+IP="192.168.1.102"
 headJointsHori = "HeadYaw"
 headJointsVerti = "HeadPitch"
 isAbsolute=True
@@ -18,11 +18,16 @@ motionProxy.setStiffnesses(headJointsHori, 0.8) #Set stiffness of limbs.
 motionProxy.setStiffnesses(headJointsVerti,0.8)
 postureProxy.goToPosture("Sit", 0.5)
 try:
-    while True:
-        vertiRand = random.uniform(-0.5,0.5)
-        horiRand = random.uniform(-0.5,0.5)
-        motionProxy.angleInterpolation(headJointsHori, horiRand, [0.5], isAbsolute)
-        motionProxy.angleInterpolation(headJointsVerti, vertiRand, [0.5], isAbsolute)
+    reference=[50,25]
+    horiRand=(reference[0]-100.0)
+    vertiRand=(reference[1]-45.0)
+    while vertiRand>1 or vertiRand<-1:
+        #horiRand=horiRand/10
+        vertiRand=vertiRand/10
+    #motionProxy.angleInterpolation(headJointsHori, horiRand, [0.5], isAbsolute)
+    motionProxy.angleInterpolation(headJointsVerti, vertiRand, [0.5], isAbsolute)
 except:
     postureProxy.goToPosture("Sit", 0.5)
     motionProxy.rest()
+postureProxy.goToPosture("Sit", 0.5)
+motionProxy.rest()
