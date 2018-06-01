@@ -3,13 +3,13 @@ import matlab.engine
 
 from turnAngle import getTurnAngle
 
-
+print 'Starting Matalb...'
 eng = matlab.engine.start_matlab()
 
 
 # inppu: X, Y
 # output: Y, X
-eng.addpath(r'/home/sameera/Documents/DevRob_GIT/DevRob_GroupBrooks/Parts code/Gaze',nargout=0)
+# eng.addpath(r'/home/sameera/Documents/DevRob_GIT/DevRob_GroupBrooks/Parts code/Gaze',nargout=0)
 
 '''
 Test case 1:

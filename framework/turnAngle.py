@@ -81,6 +81,7 @@ def getTurnAngle(image_path, x_in_p, y_in_p, x_out, y_out, saveImg = False):
 
 
     if saveImg:
+        print 'Save Image'
         #draw the graph
         plt.imshow(img)
         x1, y1 = [x_in, x_out], [y_in, y_out]
