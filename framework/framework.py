@@ -8,7 +8,7 @@ import random
 from naoqi import ALModule
 from naoqi import ALProxy
 from naoqi import ALBroker
-
+from turnAngle import getTurnAngle
 
 # global eng
 eng = matlab.engine.start_matlab()
@@ -115,16 +115,18 @@ def faceGaze(face):
     # x,y = getDirection(-face[0]-100.0, -face[1]-45.0)
     x_old = float(face[0]/320.0)
     y_old = float(face[1]/240.0)
-    print x_old, y_old
-    out = eng.callMatGaze('faceimage.png', x_old, y_old, nargout=2)
-    print '>>>>> Gaze Postition: ',out
-    #output is in Y, X format
-    x_new = out[1]
-    y_new = out[0]
+    print 'x_old:',x_old, '  y_old:', y_old
 
+    ## TODO: change image brighness before inserting to Gaze detector
+
+    #output - Y, X format
+    (y_new, x_new) = eng.callMatGaze('faceimage.png', x_old, y_old, nargout=2)
+    print '> Gaze Postition: x_new:',x_new, '  y_new:', y_new
+    # x in, y in, x out, y out
+    (turnAngleY, turnAngleX) = getTurnAngle('faceimage.png', x_old, y_old, x_new, y_new, saveImg=True)
     isAbsolute=False
-    motionProxy.angleInterpolation(headJointsVerti, out[0]/1000.0, [0.5], isAbsolute)
-    motionProxy.angleInterpolation(headJointsHori, out[1]/1000.0, [0.5], isAbsolute)
+    motionProxy.angleInterpolation(headJointsVerti, turnAngleY, [1.0], isAbsolute)
+    motionProxy.angleInterpolation(headJointsHori, turnAngleX, [1.0], isAbsolute)
     return 20
 
 def randomGaze():
@@ -213,7 +215,7 @@ if __name__ == "__main__":
     try:
         motionProxy.setStiffnesses(headJointsHori, 0.8) #Set stiffness of limbs.
         motionProxy.setStiffnesses(headJointsVerti,0.8)
-        for i in range(5):
+        for i in range(1):
             face, eyes =findFace()
             print face
             print eyes
