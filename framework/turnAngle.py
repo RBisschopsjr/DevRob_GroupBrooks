@@ -90,3 +90,16 @@ def getTurnAngle(image_path, x_in_p, y_in_p, x_out, y_out, saveImg = False):
         plt.savefig('save'+image_path)
 
     return (turn_angle_Y, turn_angle_X)
+
+'''
+Image brightness
+'''
+def adjust_gamma(image, gamma=1.0):
+	# build a lookup table mapping the pixel values [0, 255] to
+	# their adjusted gamma values
+	invGamma = 1.0 / gamma
+	table = np.array([((i / 255.0) ** invGamma) * 255
+		for i in np.arange(0, 256)]).astype("uint8")
+
+	# apply gamma correction using the lookup table
+	return cv2.LUT(image, table)
