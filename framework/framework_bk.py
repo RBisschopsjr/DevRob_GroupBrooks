@@ -83,7 +83,8 @@ def findFace():
 ##              eyes = eye_cascade.detectMultiScale(roi_gray)
 ##              for (ex,ey,ew,eh) in eyes:
 ##                    cv2.rectangle(roi_color,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
-            tts.say("Found you")
+            #tts.say("Found you")
+            print "Found you"
             try:
                 print faces[0],eyes[0]
                 return faces[0], eyes[0]
@@ -102,13 +103,70 @@ def getChoice():
 
 #TODO: Implement finding object through gaze.
 def faceGaze(face):
-    tts.say("Testing direction")
+    #tts.say("Testing direction")
     #y,x = -(face[0]-120.0)/240.0, (face[1]-160.0)/320.0
-    x,y=-(face[0]+face[2]/2-160.0)/320.0, (face[0]+face[3]/2-120.0)/240.0
+    x,y=-(face[0]+face[2]/2-160.0)/320.0, (face[1]+face[3]/2-120.0)/240.0
     isAbsolute=False
     motionProxy.angleInterpolation(headJointsVerti, y, [0.5], isAbsolute)
     motionProxy.angleInterpolation(headJointsHori, x, [0.5], isAbsolute)
     return 20
+
+def findBall():
+    cam = setUpCam()
+    
+    #image_container contains iinfo about the image
+    image_container = videoProxy.getImageRemote(cam)
+
+    #get image width and height
+    width=image_container[0]
+    height=image_container[1]
+
+    #the 6th element contains the pixel data
+    values = map(ord,list(image_container[6]))
+
+    image=np.array(values, np.uint8).reshape((height, width,3))
+
+    cv2.imwrite("ballimage.png", image)
+    image=cv2.imread("ballimage.png")
+
+    lower_green = np.array([36,100,100], dtype = np.uint8)
+    upper_green = np.array([86,255,255], dtype=np.uint8)
+
+    #convert to a hsv colorspace
+    hsvImage=cv2.cvtColor(image,cv2.COLOR_BGR2HSV)
+
+    #Create a treshold mask
+    color_mask=cv2.inRange(hsvImage,lower_green,upper_green)
+
+    #apply the mask on the image
+    green_image = cv2.bitwise_and(image,image,mask=color_mask)
+
+    kernel=np.ones((9,9),np.uint8)
+    #Remove small objects
+    opening =cv2.morphologyEx(color_mask,cv2.MORPH_OPEN,kernel)
+    #Close small openings
+    closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
+    #Apply a blur to smooth the edges
+    smoothed_mask = cv2.GaussianBlur(closing, (9,9),0)
+
+    #Apply our (smoothend and denoised) mask
+    #to our original image to get everything that is blue.
+    green_image = cv2.bitwise_and(image,image,mask=smoothed_mask)
+
+    #Get the grayscale image (last channel of the HSV image
+    gray_image = green_image[:,:,2]
+
+    #Use a hough transform to find circular objects in the image.
+    circles = cv2.HoughCircles(
+        gray_image,             #Input image to perform the transformation on
+        cv2.HOUGH_GRADIENT,     #Method of detection
+        1,                      #Ignore this one
+        5,                      #Min pixel dist between centers of detected circles
+        param1=200,             #Ignore this one as well
+        param2=20,              #Accumulator threshold: smaller = the more (false) circles
+        minRadius=5,            #Minimum circle radius
+        maxRadius=100)          #Maximum circle radius
+    return circles is not None
 
 def randomGaze():
     cam = setUpCam()
@@ -191,16 +249,16 @@ if __name__ == "__main__":
     try:
         motionProxy.setStiffnesses(headJointsHori, 0.8) #Set stiffness of limbs.
         motionProxy.setStiffnesses(headJointsVerti,0.8)
-        for i in range(1):
+        for i in range(10):
             face, eyes =findFace()
             choice = getChoice()
             if choice:
                 result=faceGaze(face)
             else:
                 result=randomGaze()
-            tts.say("Time was")
-            tts.say(str(round(result)))
-            tts.say("Trial done")
+            #tts.say("Time was")
+            #tts.say(str(round(result)))
+            #tts.say("Trial done")
         postureProxy.goToPosture("Sit", 0.5)
         motionProxy.rest()
         pythonBroker.shutdown()
