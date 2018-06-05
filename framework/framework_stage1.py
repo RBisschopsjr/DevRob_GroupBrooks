@@ -11,6 +11,7 @@ from naoqi import ALBroker
 from turnAngle import getTurnAngle, adjust_gamma
 
 # global eng
+print 'Starting Matlab ...'
 eng = matlab.engine.start_matlab()
 
 global IP
@@ -29,7 +30,7 @@ global postureProxy
 PORT=9559
 IP="192.168.1.102"
 memory = ALProxy("ALMemory", IP, PORT)
-tts =naoqi.ALProxy("ALTextToSpeech", IP, PORT)
+tts = naoqi.ALProxy("ALTextToSpeech", IP, PORT)
 motionProxy = naoqi.ALProxy("ALMotion", IP, PORT)
 headJointsHori = "HeadYaw"
 headJointsVerti = "HeadPitch"
@@ -58,6 +59,18 @@ def setUpCam():
 
     cam = videoProxy.subscribeCamera(cam_name, cam_type, res, colspace, fps)
     return cam
+
+def takePicture():
+    cam = setUpCam()
+    # image_container contains info about the image
+    image_container = videoProxy.getImageRemote(cam)
+    # get image width and height
+    width = image_container[0]
+    height = image_container[1]
+    # the 6th element contains the pixel data
+    values = map(ord, list(image_container[6]))
+    image = np.array(values, np.uint8).reshape((height, width, 3))
+    cv2.imwrite("newPosition.png", image)
 
 def findFace():
     cam = setUpCam()
@@ -92,7 +105,8 @@ def findFace():
                 eyes = eye_cascade.detectMultiScale(roi_gray)
                 for (ex,ey,ew,eh) in eyes:
                     cv2.rectangle(roi_color,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
-            tts.say("Found you")
+            # tts.say("Found you")
+            print "found You"
             try:
                 return faces[0], eyes[0]
             except:
@@ -110,17 +124,27 @@ def getChoice():
 
 #TODO: Implement finding object through gaze.
 def faceGaze(face):
-    tts.say("Testing direction")
+    # tts.say("Testing direction")
     print 'get Gaze'
-
+    # face : x, y, w, h
+    # 121, 68, 82, 82
     ### calc face position in percentage
-    # x,y = getDirection(-face[0]-100.0, -face[1]-45.0)
-    x_old = float(face[0]/320.0)
-    y_old = float(face[1]/240.0)
-    print 'x_old:',x_old, '     y_old:', y_old
+    x = face[0]
+    y = face[1]
+    w = face[2]
+    h = face[3]
+
+    x_old = float(x)+(float(w)/2.0)
+    y_old = float(y)+(float(h)/2.0)
+
+    print 'Head Pos   :> x:',x_old, '     y:', y_old
+
+    x_old = float(x_old/320.0)
+    y_old = float(y_old/240.0)
+    print 'Head Pos(%):> x:',x_old, '     y:', y_old
 
     ### change image brighness before inserting to Gaze detector
-    imgName = 'faceimage2.png'
+    imgName = 'faceimage.png'
     img = cv2.imread(imgName)
     imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
@@ -131,8 +155,9 @@ def faceGaze(face):
 
     ### Call Gaze detector with high brightness Image
     #output - Y, X format
+    # print imgName
     (y_new, x_new) = eng.callMatGaze(imgName, x_old, y_old, nargout=2)
-    print '> Gaze Postition: x_new:',x_new, '     y_new:', y_new
+    print 'Gaze Pos:> x_new:',x_new, '     y_new:', y_new
 
     ### calculate the head turnAngle
     # x in, y in, x out, y out
@@ -202,14 +227,16 @@ def randomGaze():
             maxRadius=100)          #Maximum circle radius
         if circles is not None:
             circle = circles[0,:][0]
-            tts.say("I found the ball")
+            # tts.say("I found the ball")
+            print "I found the ball"
             return time.time()-timeSinceStartMovement
         else: #TODO: find the exception for not seeing green ball.
             vertiRand = random.uniform(-0.5,0.5)
             horiRand = random.uniform(-0.5,0.5)
             motionProxy.angleInterpolation(headJointsHori, horiRand, [0.5], isAbsolute)
             motionProxy.angleInterpolation(headJointsVerti, vertiRand, [0.5], isAbsolute)
-    tts.say("I could not find the ball")
+    # tts.say("I could not find the ball")
+    print "I could not find the ball"
     return 20
 
 #End of randomGaze function.
@@ -224,10 +251,12 @@ if __name__ == "__main__":
     #tts.say("Brooks framework demonstration start")
     #tts.say("First, I would start training gaze detection.")
     #tts.say("For now, I will skip that.")
+    # cv2.waitKey(0)
     postureProxy.goToPosture("Sit", 0.5)
     try:
         motionProxy.setStiffnesses(headJointsHori, 0.8) #Set stiffness of limbs.
         motionProxy.setStiffnesses(headJointsVerti,0.8)
+
         for i in range(1):
             face, eyes =findFace()
             print face
@@ -237,9 +266,22 @@ if __name__ == "__main__":
                 result=faceGaze(face)
             else:
                 result=randomGaze()
-            tts.say("Time was")
-            tts.say(str(round(result)))
-            tts.say("Trial done")
+            # tts.say("Time was")
+            # tts.say(str(round(result)))
+            # tts.say("Trial done")
+            print "time was"
+            print round(result)
+            print "Trial done"
+            takePicture()
+
+        # time.sleep(5)
+        # print 'Turning to new position'
+        # isAbsolute=False
+        # motionProxy.angleInterpolation(headJointsVerti, -1.0, [1.0], isAbsolute)
+        # motionProxy.angleInterpolation(headJointsHori, -1.0, [1.0], isAbsolute)
+
+        time.sleep(5)
+        print 'done'
         postureProxy.goToPosture("Sit", 0.5)
         motionProxy.rest()
         pythonBroker.shutdown()

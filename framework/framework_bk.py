@@ -104,7 +104,7 @@ def getChoice():
 def faceGaze(face):
     tts.say("Testing direction")
     #y,x = -(face[0]-120.0)/240.0, (face[1]-160.0)/320.0
-    x,y=-(face[0]+face[2]/2-160.0)/320.0, (face[0]+face[3]/2-120.0)/240.0
+    x,y=-(face[0]+face[2]/2-160.0)/320.0, (face[1]+face[3]/2-120.0)/240.0
     isAbsolute=False
     motionProxy.angleInterpolation(headJointsVerti, y, [0.5], isAbsolute)
     motionProxy.angleInterpolation(headJointsHori, x, [0.5], isAbsolute)

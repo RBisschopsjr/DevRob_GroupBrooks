@@ -7,7 +7,7 @@ import math
 from turnAngle import getTurnAngle, adjust_gamma
 
 print 'Starting Matalb...'
-# eng = matlab.engine.start_matlab()
+eng = matlab.engine.start_matlab()
 
 
 # inppu: X, Y
@@ -32,19 +32,45 @@ head pos X,Y = [0.6, 0.2679]
 # imageName = 'test.jpg'
 # x_in_p = 0.6
 # y_in_p = 0.2679
-#
-# (y_out, x_out) = eng.callMatGaze(imageName, x_in_p, y_in_p, nargout=2)
-# print y_out, x_out
-#
-# (thY, thX) = getTurnAngle(imageName, x_in_p, y_in_p, x_out, y_out, saveImg=True)
-# # print thY, thX
+
+face = [210,  91,  79,  79]
+x = face[0]
+y = face[1]
+w = face[2]
+h = face[3]
+
+x_old = float(x)+(float(w)/2.0)
+y_old = float(y)+(float(h)/2.0)
+
+print 'x_old:',x_old, '     y_old:', y_old
+
+x_old = float(x_old/320.0)
+y_old = float(y_old/240.0)
+print 'x_old:',x_old, '     y_old:', y_old
+
+imageName = 'bt_faceimage.png'
+# x_in_p = 0.378125
+# y_in_p = 0.28333
+
+x_in_p = x_old
+y_in_p = y_old
+
+print 'x_in_p:',x_in_p, '     y_in_p:', y_in_p
+
+print 'Calling Gaze'
+(y_out, x_out) = eng.callMatGaze(imageName, x_in_p, y_in_p, nargout=2)
+print 'Gaze Pos:> x_new:',x_out, '     y_new:', y_out
+
+print 'turn angle'
+(thY, thX) = getTurnAngle(imageName, x_in_p, y_in_p, x_out, y_out, saveImg=False, showImg=True)
+print thY, thX
 
 '''
 image brighness test
 '''
-imgName = 'faceimage2.png'
-img = cv2.imread(imgName)
-imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-imageBT = adjust_gamma(imgRGB, gamma=1.5)
-cv2.imwrite('bt_'+imgName, cv2.cvtColor(imageBT, cv2.COLOR_RGB2BGR))
+# imgName = 'faceimage2.png'
+# img = cv2.imread(imgName)
+# imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+#
+# imageBT = adjust_gamma(imgRGB, gamma=1.5)
+# cv2.imwrite('bt_'+imgName, cv2.cvtColor(imageBT, cv2.COLOR_RGB2BGR))

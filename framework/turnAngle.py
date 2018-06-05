@@ -17,7 +17,7 @@ Param:
              (save image name : 'save'+image_path)
 Return: (turn_angle_Y, turn_angle_X)
 '''
-def getTurnAngle(image_path, x_in_p, y_in_p, x_out, y_out, saveImg = False):
+def getTurnAngle(image_path, x_in_p, y_in_p, x_out, y_out, saveImg = False, showImg = False):
 
     # Load an color image in grayscale
     img = cv2.imread(image_path)
@@ -29,7 +29,7 @@ def getTurnAngle(image_path, x_in_p, y_in_p, x_out, y_out, saveImg = False):
     #Input
     x_in = np.multiply(width, x_in_p)
     y_in = np.multiply(height, y_in_p)
-    # print 'input X:',x_in, ' Y:',y_in
+    print 'Head Pos -> X:',x_in, ' Y:',y_in
     #center
     x_c = width/2
     y_c = height/2
@@ -63,13 +63,33 @@ def getTurnAngle(image_path, x_in_p, y_in_p, x_out, y_out, saveImg = False):
 
     turn_angle_X = np.multiply(turn_angle_X, x_factor)
     turn_angle_Y = np.multiply(turn_angle_Y, y_factor)
-    # print 'turn_angle_X:\t',round(np.rad2deg(turn_angle_X)),'\t turn_angle_Y:\t',round(np.rad2deg(turn_angle_Y))
 
+    ### limit turn angle - safety
+    turnLimit = 0.9
+    if(turn_angle_X > turnLimit):
+        turn_angle_X = turnLimit
+
+    if(turn_angle_Y > turnLimit):
+        turn_angle_Y = turnLimit
+
+    # print 'turn_angle_X:\t',round(np.rad2deg(turn_angle_X)),'\t turn_angle_Y:\t',round(np.rad2deg(turn_angle_Y))
+    '''
+                    Y Axis
+                    (-)
+                    /^\
+                     |
+    X Axis           |
+    (+) <------------|------------> (-)
+                     |
+                     |
+                    \./
+                    (+)
+    '''
     # print 'X turn direction:',(x_out-x_in)
     if (x_out-x_in)>0:
+        turn_angle_X = (turn_angle_X*-1)
         print 'Turn Right :',turn_angle_X
     else:
-        turn_angle_X = (turn_angle_X*-1)
         print 'Turn Left :',turn_angle_X
 
     # print 'Y turn direction:',(y_out-y_in)
@@ -88,6 +108,14 @@ def getTurnAngle(image_path, x_in_p, y_in_p, x_out, y_out, saveImg = False):
         plt.plot(x1, y1, marker = 'o')
         # plt.show()
         plt.savefig('save'+image_path)
+
+    if showImg:
+        print 'Show Image'
+        #draw the graph
+        plt.imshow(img)
+        x1, y1 = [x_in, x_out], [y_in, y_out]
+        plt.plot(x1, y1, marker = 'o')
+        plt.show()
 
     return (turn_angle_Y, turn_angle_X)
 
