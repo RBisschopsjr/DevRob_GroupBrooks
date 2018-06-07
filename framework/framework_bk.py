@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 import naoqi
 import time
 import random
@@ -17,8 +18,9 @@ global headJointsVerti
 global videoProxy
 global pythonBroker
 global postureProxy
+
 PORT=9559
-IP="192.168.1.102"
+IP="192.168.1.103"
 memory = ALProxy("ALMemory", IP, PORT)
 tts =naoqi.ALProxy("ALTextToSpeech", IP, PORT)
 motionProxy = naoqi.ALProxy("ALMotion", IP, PORT)
@@ -28,13 +30,50 @@ videoProxy = naoqi.ALProxy('ALVideoDevice', IP, PORT)
 pythonBroker = ALBroker("pythonBroker", "0.0.0.0", 9600, IP, PORT)
 postureProxy = naoqi.ALProxy("ALRobotPosture", IP, PORT)
 
-##for c number of trials:
-##	while not face found:
-##		findFace()
-##	random= takeRandomNumberOnPreference
-##	PerformBehaviour(random)
-##	state if ball was found
-##shut down
+class Agent:
+
+    def __init__(self, policy_names):
+	
+	# Maximum time of looking around
+        self.attention = 6	 								
+        self.policy_names = policy_names
+        # Stores values to base decision on
+        self.policy_values = [1.0 for _ in policy_names] 
+	
+	
+    '''
+	Returns the probability of choosing each of its different policies as a list.
+	This begins as a uniform distribution over the possible policies.
+    '''
+    def get_probs(self):
+        return [x/sum(self.policy_values) for x in self.policy_values]
+	
+	
+    '''
+	Chooses a specific policy (as a string name) to enact pseudo-randomly, 
+	given its preferences. 
+    '''
+    def get_policy(self):
+        probs = self.get_probs()
+        choice = np.random.uniform()
+        for i, p in enumerate(probs):
+            if p > choice:
+                choice -= p
+            else:
+                return self.policy_names[i]
+        return self.policy_names[-1]
+		
+		
+    '''
+	Updates the beliefs given an observations, which must be a probability vector as
+	as list	with length equal to the number of policies.
+    '''
+    def update_policies(self, observations):
+        if len(observations) != len(self.policy_values):
+            print("Observation length must equal the mumber of different policies")
+        else:		
+            self.policy_values = [x + y for x, y in zip(self.policy_values, observations)] 
+
 
 def setUpCam():
     cam_name = "camera"  # Creates an identifier for the camera subscription
@@ -96,10 +135,6 @@ def findFace():
         motionProxy.angleInterpolation(headJointsHori, horiRand, [0.5], isAbsolute)
         motionProxy.angleInterpolation(headJointsVerti, vertiRand, [0.5], isAbsolute)
 
-#TODO: Implement determining what behaviour to pick.
-def getChoice():
-    return True
-    #return random.randint(0,1)==1
 
 #TODO: Implement finding object through gaze.
 def faceGaze(face):
@@ -227,6 +262,8 @@ def randomGaze():
             minRadius=5,            #Minimum circle radius
             maxRadius=100)          #Maximum circle radius
         if circles is not None:
+            print "circle incoming"
+            print circles
             circle = circles[0,:][0]
             tts.say("I found the ball")
             return time.time()-timeSinceStartMovement
@@ -246,19 +283,29 @@ if __name__ == "__main__":
     #tts.say("First, I would start training gaze detection.")
     #tts.say("For now, I will skip that.")
     postureProxy.goToPosture("Sit", 0.5)
+    robot = Agent(["random", "gaze-directed"])
+    beliefs =[]
     try:
         motionProxy.setStiffnesses(headJointsHori, 0.8) #Set stiffness of limbs.
         motionProxy.setStiffnesses(headJointsVerti,0.8)
-        for i in range(10):
+        for i in range(1):
             face, eyes =findFace()
-            choice = getChoice()
-            if choice:
+            choice = robot.get_policy()
+            if choice=="gaze-directed":
+                index=1
                 result=faceGaze(face)
             else:
+                index=0
                 result=randomGaze()
+            policy_eval = 1 - (result/robot.attention)
+            observation = [(1-policy_eval)/(len(robot.policy_names)-1) for _ in robot.policy_names]
+            observation[index] = policy_eval
+            robot.update_policies(observation)
+            beliefs.append(observation)
             #tts.say("Time was")
             #tts.say(str(round(result)))
             #tts.say("Trial done")
+        print(observation)
         postureProxy.goToPosture("Sit", 0.5)
         motionProxy.rest()
         pythonBroker.shutdown()
