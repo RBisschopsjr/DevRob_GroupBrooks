@@ -35,7 +35,7 @@ class Agent:
     def __init__(self, policy_names):
 	
 	# Maximum time of looking around
-        self.attention = 6	 								
+        self.attention = 20	 								
         self.policy_names = policy_names
         # Stores values to base decision on
         self.policy_values = [1.0 for _ in policy_names] 
@@ -124,6 +124,7 @@ def findFace():
     ##              for (ex,ey,ew,eh) in eyes:
     ##                    cv2.rectangle(roi_color,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
                 #tts.say("Found you")
+                print "Found you"
                 try:
                     print faces[0],eyes[0]
                     return faces[0], eyes[0]
@@ -278,6 +279,16 @@ def randomGaze():
 
 #End of randomGaze function.
 
+def time_to_observation(time, attention, nr_policies, index):
+
+	time = max(0, min(attention, time))
+	fitness = (attention - time)/attention
+
+	observation = [(1-fitness)/(nr_policies-1) for x in range(nr_policies)]
+	observation[index] = fitness
+	
+	return observation
+
 
 if __name__ == "__main__":
     #tts.say("Brooks framework demonstration start")
@@ -292,7 +303,16 @@ if __name__ == "__main__":
         for i in range(5):
             face, eyes =findFace()
             choice = robot.get_policy()
-            randomGaze()
+            if choice=="gaze-directed":
+                index=1
+                result=faceGaze(face)
+            else:
+                index=0
+                result=randomGaze()
+            observation = time_to_observation(result,robot.attention,2,index)
+            #observation[index] = policy_eval
+            robot.update_policies(observation)
+            beliefs.append(observation)
             #tts.say("Time was")
             #tts.say(str(round(result)))
             #tts.say("Trial done")
