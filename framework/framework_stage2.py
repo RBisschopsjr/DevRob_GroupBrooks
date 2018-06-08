@@ -53,6 +53,51 @@ print 'Starting Program ...'
 ##	state if ball was found
 ##shut down
 
+class Agent:
+
+    def __init__(self, policy_names):
+
+	# Maximum time of looking around
+        self.attention = 20
+        self.policy_names = policy_names
+        # Stores values to base decision on
+        self.policy_values = [1.0 for _ in policy_names]
+
+
+    '''
+	Returns the probability of choosing each of its different policies as a list.
+	This begins as a uniform distribution over the possible policies.
+    '''
+    def get_probs(self):
+        return [x/sum(self.policy_values) for x in self.policy_values]
+
+
+    '''
+	Chooses a specific policy (as a string name) to enact pseudo-randomly,
+	given its preferences.
+    '''
+    def get_policy(self):
+        probs = self.get_probs()
+        choice = np.random.uniform()
+        for i, p in enumerate(probs):
+            if p > choice:
+                choice -= p
+            else:
+                return self.policy_names[i]
+        return self.policy_names[-1]
+
+
+    '''
+	Updates the beliefs given an observations, which must be a probability vector as
+	as list	with length equal to the number of policies.
+    '''
+    def update_policies(self, observations):
+        if len(observations) != len(self.policy_values):
+            print("Observation length must equal the mumber of different policies")
+        else:
+            self.policy_values = [x + y for x, y in zip(self.policy_values, observations)]
+
+
 def setUpCam():
     cam_name = "camera"  # Creates an identifier for the camera subscription
     cam_type = 0  # 0 for top camera, 1 for bottom camera
@@ -197,25 +242,6 @@ def faceGaze(face):
     imgHeight = 240.0
     imgWidth = 320.0
 
-    # face : x, y, w, h
-    # 121, 68, 82, 82
-    ### calc face position in percentage
-    # x = face[0]
-    # y = face[1]
-    # w = face[2]
-    # h = face[3]
-
-
-
-    # x_face = float(x)+(float(w)/2.0)
-    # y_face = float(y)+(float(h)/2.0)
-    # # print 'Head Pos   :> x:',x_face, '\t y:', y_face
-    #
-    # # position in percentage - needed for Gaze network
-    # x_face_pct = float(x_face/imgWidth)
-    # y_face_pct = float(y_face/imgHeight)
-    # # print 'Head Pos(%):> x:',x_face_pct, '\t y:', y_face_pct
-
     imgName = 'faceimage_test.png' # face detected Image
     isAbsolute=False
     '''
@@ -229,6 +255,11 @@ def faceGaze(face):
     motionProxy.angleInterpolation(headJointsHori, ang_x, [0.5], isAbsolute)
     # save current image to be used for Gaze detector
 
+    # TODO:
+    # 1. Since now face is centered: x,y = 0.5 can be used
+    # x_face_pct = 0.5
+    # y_face_pct = 0.5
+    # 2. Run face detection again and get the (x,y) of the face again
     ## face detect 2nd time
     tts.say("Looking for face again")
     newface, neweye = findFace(random_enable=False)
@@ -239,6 +270,7 @@ def faceGaze(face):
     w = newface[2]
     h = newface[3]
 
+    #
     img = cv2.imread(imgName)
     plt.imshow(img)
     x1, y1 = [x, x+w, x+w, x], [y, y, y+h, y+h]
@@ -272,13 +304,6 @@ def faceGaze(face):
     imgName = 'bt_'+imgName
     # save the new high brighness image as "bt_<imaName>"
     cv2.imwrite(imgName, cv2.cvtColor(imageBT, cv2.COLOR_RGB2BGR))
-
-    ### Call Gaze detector with high brightness Image
-    # TODO:
-    # 1. Since now face is centered: x,y = 0.5 can be used
-    # x_face_pct = 0.5
-    # y_face_pct = 0.5
-    # 2. Run face detection again and get the (x,y) of the face again
 
     (y_gaze, x_gaze) = eng.callMatGaze(imgName, x_face_pct, y_face_pct, nargout=2) # output - Y, X format
     print 'Gaze Pos:> x_gaze:',x_gaze, '     y_gaze:', y_gaze
@@ -338,14 +363,14 @@ def faceGaze(face):
         print 'X angle:',sensorAngles_x, '\t Y angle:',sensorAngles_y
         # turn one step in X & Y
         if sensorAngles_x > -1 and sensorAngles_x < 1:
-            print 'X step turn'
             motionProxy.angleInterpolation(headJointsHori, turn_step_angle_x, [0.2], isAbsolute)
+            print 'X step turn'
         else:
             x_limit_reached = True
 
         if sensorAngles_y > -1 and sensorAngles_y < 1:
-            print 'Y step turn'
             motionProxy.angleInterpolation(headJointsVerti, turn_step_angle_y, [0.2], isAbsolute)
+            print 'Y step turn'
         else:
             y_limit_reached = True
 
@@ -358,8 +383,15 @@ def faceGaze(face):
         getBall = findBall()
         if getBall is not None:
             if getBall[0] > 0.0 and getBall[1] > 0.0:
+                tts.say("Found Ball through gaze following")
                 print '\nFound Ball'
-                print getBall
+                print getBall #(X, Y, radius)
+                # TODO: Center on the ball
+                # ang_x, ang_y=-(face[0]+face[2]/2-160.0)/320.0, (face[1]+face[3]/2-120.0)/240.0
+                # print ang_x, ang_y
+                # print 'centering face'
+                # motionProxy.angleInterpolation(headJointsVerti, ang_y, [0.5], isAbsolute)
+                # motionProxy.angleInterpolation(headJointsHori, ang_x, [0.5], isAbsolute)
                 break
 
         #safety
@@ -468,11 +500,15 @@ def randomGaze():
 
 #End of randomGaze function.
 
-def getDirection(x,y):
-    while x>1 or y>1 or x<-1 or y<-1:
-        x=x/10
-        y=y/10
-    return x, y
+def time_to_observation(time, attention, nr_policies, index):
+
+	time = max(0, min(attention, time))
+	fitness = (attention - time)/attention
+
+	observation = [(1-fitness)/(nr_policies-1) for x in range(nr_policies)]
+	observation[index] = fitness
+
+	return observation
 
 if __name__ == "__main__":
     #tts.say("Brooks framework demonstration start")
@@ -480,43 +516,38 @@ if __name__ == "__main__":
     #tts.say("For now, I will skip that.")
     # cv2.waitKey(0)
     postureProxy.goToPosture("Sit", 0.5)
+    robot = Agent(["random", "gaze-directed"])
+    beliefs =[]
     try:
         motionProxy.setStiffnesses(headJointsHori, 0.8) #Set stiffness of limbs.
         motionProxy.setStiffnesses(headJointsVerti,0.8)
-
-        for i in range(1):
-            face, eyes = findFace(random_enable=True)
-            print 'face:', face
-            print 'eyes:', eyes
-            choice = getChoice()
-            if choice:
-                result=faceGaze(face)
+        print "Loop Starting..."
+        for i in range(5):
+            print 'Iteration:',i
+            face, eyes =findFace(random_enable=True)
+            choice = robot.get_policy()
+            if choice=="gaze-directed":
+                index=1
+                result= faceGaze(face)
             else:
-                result=randomGaze()
-            takePicture("newPosition.png")
-            tts.say("Time was")
-            tts.say(str(round(result)))
-            tts.say("Trial done")
-            print "time was"
-            print round(result)
-            print "Trial done"
+                index=0
+                result = randomGaze()
+            observation = time_to_observation(result,robot.attention,2,index)
+            #observation[index] = policy_eval
+            robot.update_policies(observation)
+            beliefs.append(observation)
+            robot.update_policies(observation)
+            beliefs.append(robot.get_probs())
 
-        # time.sleep(5)
-        # print 'Turning to new position'
-        # isAbsolute=False
-        # motionProxy.angleInterpolation(headJointsVerti, -1.0, [1.0], isAbsolute)
-        # motionProxy.angleInterpolation(headJointsHori, -1.0, [1.0], isAbsolute)
-
-
-        time.sleep(3)
-        print 'done'
+            #tts.say("Time was")
+            #tts.say(str(round(result)))
+            #tts.say("Trial done")
+        print(beliefs)
         postureProxy.goToPosture("Sit", 0.5)
         motionProxy.rest()
         pythonBroker.shutdown()
-        sys.exit(0)
     except Exception as e:
         print e
         postureProxy.goToPosture("Sit", 0.5)
         motionProxy.rest()
         pythonBroker.shutdown()
-        sys.exit(0)

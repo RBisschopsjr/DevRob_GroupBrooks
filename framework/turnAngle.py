@@ -11,16 +11,18 @@ Param:
     image_path: path to the image file
     x_in_p: Point 1, x coordinate in percentage
     y_in_p: Point 1, y coordinate in percentage
-    x_out: Point 2, x coordinate in pixels
-    y_out: Point 2, y coordinate in pixels
+    x_out : Point 2, x coordinate in pixels
+    y_out : Point 2, y coordinate in pixels
     saveImg: Bool varible to indicate whether to save an image with 2 points (default : False)
              (save image name : 'save'+image_path)
+    showImg: Bool
 Return: (turn_angle_Y, turn_angle_X)
 '''
 def getTurnAngle(image_path, x_in_p, y_in_p, x_out, y_out, saveImg = False, showImg = False):
 
     # Load an color image in grayscale
     img = cv2.imread(image_path)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     # dimensions
     height, width = img.shape[:2]
@@ -29,10 +31,10 @@ def getTurnAngle(image_path, x_in_p, y_in_p, x_out, y_out, saveImg = False, show
     #Input
     x_in = np.multiply(width, x_in_p)
     y_in = np.multiply(height, y_in_p)
-    print 'Head Pos -> X:',x_in, ' Y:',y_in
+    # print 'Head Pos -> X:',x_in, ' Y:',y_in
     #center
-    x_c = width/2
-    y_c = height/2
+    x_c = width/2.0
+    y_c = height/2.0
 
     Ya1 = abs(y_c-y_in)
     Xa1 = abs(x_c-x_in)
@@ -45,10 +47,17 @@ def getTurnAngle(image_path, x_in_p, y_in_p, x_out, y_out, saveImg = False, show
 
     # print 'Ya1:\t',Ya1,'\t Xa1:\t',Xa1
     # print 'Ya2:\t',Ya2,'\t Xa2:\t',Xa2
+    if Xa1==0.0:
+        theta_1 = 0.0
+    else:
+        theta_1 = math.atan(float(Ya1)/float(Xa1))
 
-    theta_1 = math.atan(float(Ya1)/float(Xa1))
-    theta_2 = math.atan(float(Ya2)/float(Xa2))
+    if Xa2==0.0:
+        theta_2 = 0.0
+    else:
+        theta_2 = math.atan(float(Ya2)/float(Xa2))
 
+    # print 'theta_1:',theta_1, '\t theta_2:',theta_2
     turn_angle_X = math.pi-theta_1-theta_2
     turn_angle_Y = theta_1+theta_2
 
@@ -107,7 +116,7 @@ def getTurnAngle(image_path, x_in_p, y_in_p, x_out, y_out, saveImg = False, show
         x1, y1 = [x_in, x_out], [y_in, y_out]
         plt.plot(x1, y1, marker = 'o')
         # plt.show()
-        plt.savefig('save'+image_path)
+        plt.savefig('save_'+image_path)
 
     if showImg:
         print 'Show Image'

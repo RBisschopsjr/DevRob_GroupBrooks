@@ -1,0 +1,102 @@
+2018-06-08  10.50
+
+Starting Matlab ...
+Starting Program ...
+[ INFO:0] Initialize OpenCL runtime...
+found You
+[ 81 108  94  94]
+[42 18 33 33]
+
+=== get Gaze ===
+
+face detect saveds
+0.1 0.14583333333333334
+centering face
+found You
+newFace: [97 65 95 95]
+Head Pos   :> x: 144.5 	 y: 112.5
+Head Pos(%):> x: 0.4515625 	 y: 0.46875
+Face picture saved
+Gaze Pos:> x_gaze: 296.0      y_gaze: 119.0
+Turn Right : -0.9
+Turn Down : 0.012404549482740038
+Save Image
+turn_step_angle_x: -0.09 	 turn_step_angle_y: 0.00124045494827
+X angle: -0.0368580818176 	 Y angle: 0.315962076187
+X step turn
+Y step turn
+turn_count:: 11
+X angle: -0.0859460830688 	 Y angle: 0.315962076187
+X step turn
+Y step turn
+turn_count:: 10
+X angle: -0.174917936325 	 Y angle: 0.315962076187
+X step turn
+Y step turn
+turn_count:: 9
+X angle: -0.265424013138 	 Y angle: 0.315962076187
+X step turn
+Y step turn
+
+Found Ball
+[283.5 156.5  89.9]
+
+ Gaze follow END
+time was
+20.0
+Trial done
+done
+
+
+==== 2nd try
+Starting Matlab ...
+Starting Program ...
+[ INFO:0] Initialize OpenCL runtime...
+found You
+face: [ 98  76 107 107]
+eyes: [53 21 35 35]
+
+=== get Gaze ===
+
+0.028125 0.0375
+centering face
+found You
+newFace: [106  71 104 104]
+face detect saveds
+Head Pos   :> x: 158.0 	 y: 123.0
+Head Pos(%):> x: 0.49375 	 y: 0.5125
+Face picture saved
+Gaze Pos:> x_gaze: 25.0      y_gaze: 172.0
+Turn Left : 0.7444379152511391
+Turn Down : 0.2757196996336724
+Save Image
+turn_step_angle_x: 0.0744437915251 	 turn_step_angle_y: 0.0275719699634
+X angle: 0.147222042084 	 Y angle: 0.280679941177
+X step turn
+Y step turn
+turn_count:: 11
+X angle: 0.225455999374 	 Y angle: 0.325165987015
+X step turn
+Y step turn
+turn_count:: 10
+X angle: 0.299088001251 	 Y angle: 0.325165987015
+X step turn
+Y step turn
+turn_count:: 9
+X angle: 0.375787973404 	 Y angle: 0.375787973404
+X step turn
+Y step turn
+turn_count:: 8
+X angle: 0.449419975281 	 Y angle: 0.406468153
+X step turn
+Y step turn
+
+Found Ball
+[16.5 82.5 41.7]
+
+ Gaze follow END
+time was
+20.0
+Trial done
+done
+

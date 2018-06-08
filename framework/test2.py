@@ -62,7 +62,10 @@ print 'Calling Gaze'
 print 'Gaze Pos:> x_new:',x_out, '     y_new:', y_out
 
 print 'turn angle'
-(thY, thX) = getTurnAngle(imageName, x_in_p, y_in_p, x_out, y_out, saveImg=False, showImg=True)
+(thY, thX) = getTurnAngle(imageName, x_in_p, y_in_p, x_out, y_out, saveImg=False, showImg=False)
+print thY, thX
+
+(thY, thX) = getTurnAngle(imageName, 0.2, 0.2, 160, 120)
 print thY, thX
 
 '''
