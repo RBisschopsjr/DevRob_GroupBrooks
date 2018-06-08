@@ -45,7 +45,7 @@ class Agent:
 	Returns the probability of choosing each of its different policies as a list.
 	This begins as a uniform distribution over the possible policies.
     '''
-    def get_probs(self):
+    def get_probs(self): 
         return [x/sum(self.policy_values) for x in self.policy_values]
 	
 	
