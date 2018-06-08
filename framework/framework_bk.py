@@ -93,42 +93,42 @@ def findFace():
     cam = setUpCam()
 
     while True:
-        # image_container contains info about the image
-        image_container = videoProxy.getImageRemote(cam)
+        for num in range(0,5):
+            # image_container contains info about the image
+            image_container = videoProxy.getImageRemote(cam)
 
-        # get image width and height
-        width = image_container[0]
-        height = image_container[1]
+            # get image width and height
+            width = image_container[0]
+            height = image_container[1]
 
-        # the 6th element contains the pixel data
-        values = map(ord, list(image_container[6]))
+            # the 6th element contains the pixel data
+            values = map(ord, list(image_container[6]))
 
-        image = np.array(values, np.uint8).reshape((height, width, 3))
+            image = np.array(values, np.uint8).reshape((height, width, 3))
 
-        cv2.imwrite("faceimage.png", image)
-        image = cv2.imread("faceimage.png")
+            cv2.imwrite("faceimage.png", image)
+            image = cv2.imread("faceimage.png")
 
-        face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-        eye_cascade = cv2.CascadeClassifier('haarcascade_eye.xml')
+            face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+            eye_cascade = cv2.CascadeClassifier('haarcascade_eye.xml')
 
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
-        if len(faces) > 0 :
-##          for (x,y,w,h) in faces:
-##              cv2.rectangle(image,(x,y),(x+w,y+h),(255,0,0),2)
-##              roi_gray = gray[y:y+h, x:x+w]
-##              roi_color = image[y:y+h, x:x+w]
-##              eyes = eye_cascade.detectMultiScale(roi_gray)
-##              for (ex,ey,ew,eh) in eyes:
-##                    cv2.rectangle(roi_color,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
-            #tts.say("Found you")
-            print "Found you"
-            try:
-                print faces[0],eyes[0]
-                return faces[0], eyes[0]
-            except:
-                return faces[0], None
+            faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+            if len(faces) > 0 :
+    ##          for (x,y,w,h) in faces:
+    ##              cv2.rectangle(image,(x,y),(x+w,y+h),(255,0,0),2)
+    ##              roi_gray = gray[y:y+h, x:x+w]
+    ##              roi_color = image[y:y+h, x:x+w]
+    ##              eyes = eye_cascade.detectMultiScale(roi_gray)
+    ##              for (ex,ey,ew,eh) in eyes:
+    ##                    cv2.rectangle(roi_color,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
+                #tts.say("Found you")
+                try:
+                    print faces[0],eyes[0]
+                    return faces[0], eyes[0]
+                except:
+                    return faces[0], None
         isAbsolute=True
         vertiRand = random.uniform(-0.5,0.5)
         horiRand = random.uniform(-0.5,0.5)
@@ -148,60 +148,62 @@ def faceGaze(face):
 
 def findBall():
     cam = setUpCam()
-    
-    #image_container contains iinfo about the image
-    image_container = videoProxy.getImageRemote(cam)
+    for num in range(0,5):
+        #image_container contains iinfo about the image
+        image_container = videoProxy.getImageRemote(cam)
 
-    #get image width and height
-    width=image_container[0]
-    height=image_container[1]
+        #get image width and height
+        width=image_container[0]
+        height=image_container[1]
 
-    #the 6th element contains the pixel data
-    values = map(ord,list(image_container[6]))
+        #the 6th element contains the pixel data
+        values = map(ord,list(image_container[6]))
 
-    image=np.array(values, np.uint8).reshape((height, width,3))
+        image=np.array(values, np.uint8).reshape((height, width,3))
 
-    cv2.imwrite("ballimage.png", image)
-    image=cv2.imread("ballimage.png")
+        cv2.imwrite("ballimage.png", image)
+        image=cv2.imread("ballimage.png")
 
-    lower_green = np.array([36,100,100], dtype = np.uint8)
-    upper_green = np.array([86,255,255], dtype=np.uint8)
+        lower_green = np.array([36,100,100], dtype = np.uint8)
+        upper_green = np.array([86,255,255], dtype=np.uint8)
 
-    #convert to a hsv colorspace
-    hsvImage=cv2.cvtColor(image,cv2.COLOR_BGR2HSV)
+        #convert to a hsv colorspace
+        hsvImage=cv2.cvtColor(image,cv2.COLOR_BGR2HSV)
 
-    #Create a treshold mask
-    color_mask=cv2.inRange(hsvImage,lower_green,upper_green)
+        #Create a treshold mask
+        color_mask=cv2.inRange(hsvImage,lower_green,upper_green)
 
-    #apply the mask on the image
-    green_image = cv2.bitwise_and(image,image,mask=color_mask)
+        #apply the mask on the image
+        green_image = cv2.bitwise_and(image,image,mask=color_mask)
 
-    kernel=np.ones((9,9),np.uint8)
-    #Remove small objects
-    opening =cv2.morphologyEx(color_mask,cv2.MORPH_OPEN,kernel)
-    #Close small openings
-    closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
-    #Apply a blur to smooth the edges
-    smoothed_mask = cv2.GaussianBlur(closing, (9,9),0)
+        kernel=np.ones((9,9),np.uint8)
+        #Remove small objects
+        opening =cv2.morphologyEx(color_mask,cv2.MORPH_OPEN,kernel)
+        #Close small openings
+        closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
+        #Apply a blur to smooth the edges
+        smoothed_mask = cv2.GaussianBlur(closing, (9,9),0)
 
-    #Apply our (smoothend and denoised) mask
-    #to our original image to get everything that is blue.
-    green_image = cv2.bitwise_and(image,image,mask=smoothed_mask)
+        #Apply our (smoothend and denoised) mask
+        #to our original image to get everything that is blue.
+        green_image = cv2.bitwise_and(image,image,mask=smoothed_mask)
 
-    #Get the grayscale image (last channel of the HSV image
-    gray_image = green_image[:,:,2]
+        #Get the grayscale image (last channel of the HSV image
+        gray_image = green_image[:,:,2]
 
-    #Use a hough transform to find circular objects in the image.
-    circles = cv2.HoughCircles(
-        gray_image,             #Input image to perform the transformation on
-        cv2.HOUGH_GRADIENT,     #Method of detection
-        1,                      #Ignore this one
-        5,                      #Min pixel dist between centers of detected circles
-        param1=200,             #Ignore this one as well
-        param2=20,              #Accumulator threshold: smaller = the more (false) circles
-        minRadius=5,            #Minimum circle radius
-        maxRadius=100)          #Maximum circle radius
-    return circles is not None
+        #Use a hough transform to find circular objects in the image.
+        circles = cv2.HoughCircles(
+            gray_image,             #Input image to perform the transformation on
+            cv2.HOUGH_GRADIENT,     #Method of detection
+            1,                      #Ignore this one
+            5,                      #Min pixel dist between centers of detected circles
+            param1=200,             #Ignore this one as well
+            param2=20,              #Accumulator threshold: smaller = the more (false) circles
+            minRadius=5,            #Minimum circle radius
+            maxRadius=100)          #Maximum circle radius
+        if circles is not None:
+            return circles[0,:][0]
+    return false
 
 def randomGaze():
     cam = setUpCam()
@@ -262,9 +264,8 @@ def randomGaze():
             minRadius=5,            #Minimum circle radius
             maxRadius=100)          #Maximum circle radius
         if circles is not None:
-            print "circle incoming"
-            print circles
             circle = circles[0,:][0]
+            print circle
             tts.say("I found the ball")
             return time.time()-timeSinceStartMovement
         else: #TODO: find the exception for not seeing green ball.
@@ -288,20 +289,10 @@ if __name__ == "__main__":
     try:
         motionProxy.setStiffnesses(headJointsHori, 0.8) #Set stiffness of limbs.
         motionProxy.setStiffnesses(headJointsVerti,0.8)
-        for i in range(1):
+        for i in range(5):
             face, eyes =findFace()
             choice = robot.get_policy()
-            if choice=="gaze-directed":
-                index=1
-                result=faceGaze(face)
-            else:
-                index=0
-                result=randomGaze()
-            policy_eval = 1 - (result/robot.attention)
-            observation = [(1-policy_eval)/(len(robot.policy_names)-1) for _ in robot.policy_names]
-            observation[index] = policy_eval
-            robot.update_policies(observation)
-            beliefs.append(observation)
+            randomGaze()
             #tts.say("Time was")
             #tts.say(str(round(result)))
             #tts.say("Trial done")
