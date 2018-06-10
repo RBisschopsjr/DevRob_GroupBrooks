@@ -37,3 +37,5 @@ def getServerGaze(imageName, x_val, y_val):
 # expected output: {u'message': u'image received. size=124x124'}
 
 print getServerGaze(imageName_1, x_in_p, y_in_p)
+
+print 'End of'

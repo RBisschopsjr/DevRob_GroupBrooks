@@ -7,7 +7,7 @@ import math
 from turnAngle import getTurnAngle, adjust_gamma
 
 print 'Starting Matalb...'
-eng = matlab.engine.start_matlab()
+# eng = matlab.engine.start_matlab()
 
 
 # inppu: X, Y
@@ -57,15 +57,20 @@ y_in_p = y_old
 
 print 'x_in_p:',x_in_p, '     y_in_p:', y_in_p
 
-print 'Calling Gaze'
-(y_out, x_out) = eng.callMatGaze(imageName, x_in_p, y_in_p, nargout=2)
-print 'Gaze Pos:> x_new:',x_out, '     y_new:', y_out
+# print 'Calling Gaze'
+# (y_out, x_out) = eng.callMatGaze(imageName, x_in_p, y_in_p, nargout=2)
+# print 'Gaze Pos:> x_new:',x_out, '     y_new:', y_out
+#
+# print 'turn angle'
+# (thY, thX) = getTurnAngle(imageName, x_in_p, y_in_p, x_out, y_out, saveImg=False, showImg=False)
+# print thY, thX
+#
+# (thY, thX) = getTurnAngle(imageName, 0.2, 0.2, 160, 120)
+# print thY, thX
 
-print 'turn angle'
-(thY, thX) = getTurnAngle(imageName, x_in_p, y_in_p, x_out, y_out, saveImg=False, showImg=False)
-print thY, thX
+# [283.5 156.5  89.9]
 
-(thY, thX) = getTurnAngle(imageName, 0.2, 0.2, 160, 120)
+(thY, thX) = getTurnAngle('ballimage_1.png', 0.5, 0.5, 283.5, 156.5)
 print thY, thX
 
 '''

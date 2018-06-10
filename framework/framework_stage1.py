@@ -197,25 +197,6 @@ def faceGaze(face):
     imgHeight = 240.0
     imgWidth = 320.0
 
-    # face : x, y, w, h
-    # 121, 68, 82, 82
-    ### calc face position in percentage
-    # x = face[0]
-    # y = face[1]
-    # w = face[2]
-    # h = face[3]
-
-
-
-    # x_face = float(x)+(float(w)/2.0)
-    # y_face = float(y)+(float(h)/2.0)
-    # # print 'Head Pos   :> x:',x_face, '\t y:', y_face
-    #
-    # # position in percentage - needed for Gaze network
-    # x_face_pct = float(x_face/imgWidth)
-    # y_face_pct = float(y_face/imgHeight)
-    # # print 'Head Pos(%):> x:',x_face_pct, '\t y:', y_face_pct
-
     imgName = 'faceimage_test.png' # face detected Image
     isAbsolute=False
     '''
@@ -359,7 +340,20 @@ def faceGaze(face):
         if getBall is not None:
             if getBall[0] > 0.0 and getBall[1] > 0.0:
                 print '\nFound Ball'
-                print getBall
+                print getBall #(X, Y, radius)
+                # TODO: Center on the ball
+                # ang_x, ang_y=-(face[0]+face[2]/2-160.0)/320.0, (face[1]+face[3]/2-120.0)/240.0
+                # print ang_x, ang_y
+                # print 'centering face'
+                # motionProxy.angleInterpolation(headJointsVerti, ang_y, [0.5], isAbsolute)
+                # motionProxy.angleInterpolation(headJointsHori, ang_x, [0.5], isAbsolute)
+                (center_ball_y, center_ball_x) = getTurnAngle('ballimage_1.png', 0.5, 0.5, getBall[0], getBall[1])
+                print 'centering Ball'
+                tts.say("centering Ball")
+                isAbsolute = False
+                motionProxy.angleInterpolation(headJointsVerti, center_ball_y, [1.0], isAbsolute)
+                motionProxy.angleInterpolation(headJointsHori, center_ball_x, [1.0], isAbsolute)
+                tts.say("Task Complete")
                 break
 
         #safety
@@ -378,8 +372,6 @@ def faceGaze(face):
         # getLimits
         # getPosition
 
-
-
         # TODO: Calc current position (x,y) using above values
 
         # if current_pos_x >= turnLimit_x and current_pos_y >= turnLimit_y :
@@ -389,7 +381,6 @@ def faceGaze(face):
 
     #
     print "\n Gaze follow END"
-
     return 20
 
 
