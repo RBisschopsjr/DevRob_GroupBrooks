@@ -19,16 +19,16 @@ global videoProxy
 global pythonBroker
 global postureProxy
 
-PORT=9559
-IP="192.168.1.103"
-memory = ALProxy("ALMemory", IP, PORT)
-tts =naoqi.ALProxy("ALTextToSpeech", IP, PORT)
-motionProxy = naoqi.ALProxy("ALMotion", IP, PORT)
-headJointsHori = "HeadYaw"
-headJointsVerti = "HeadPitch"
-videoProxy = naoqi.ALProxy('ALVideoDevice', IP, PORT)
-pythonBroker = ALBroker("pythonBroker", "0.0.0.0", 9600, IP, PORT)
-postureProxy = naoqi.ALProxy("ALRobotPosture", IP, PORT)
+##PORT=9559
+##IP="192.168.1.102"
+##memory = ALProxy("ALMemory", IP, PORT)
+##tts =naoqi.ALProxy("ALTextToSpeech", IP, PORT)
+##motionProxy = naoqi.ALProxy("ALMotion", IP, PORT)
+##headJointsHori = "HeadYaw"
+##headJointsVerti = "HeadPitch"
+##videoProxy = naoqi.ALProxy('ALVideoDevice', IP, PORT)
+##pythonBroker = ALBroker("pythonBroker", "0.0.0.0", 9600, IP, PORT)
+##postureProxy = naoqi.ALProxy("ALRobotPosture", IP, PORT)
 
 class Agent:
 
@@ -57,7 +57,7 @@ class Agent:
         probs = self.get_probs()
         choice = np.random.uniform()
         for i, p in enumerate(probs):
-            if p > choice:
+            if p < choice:
                 choice -= p
             else:
                 return self.policy_names[i]
@@ -281,47 +281,63 @@ def randomGaze():
 
 def time_to_observation(time, attention, nr_policies, index):
 
-	time = max(0, min(attention, time))
-	fitness = (attention - time)/attention
-
-	observation = [(1-fitness)/(nr_policies-1) for x in range(nr_policies)]
-	observation[index] = fitness
-	
-	return observation
+    time = max(0, min(attention, time))
+    fitness = float(attention - time)/float(attention)
+    
+    observation = [(1-fitness)/(nr_policies-1) for x in range(nr_policies)]
+    observation[index] = fitness
+    
+    return observation
 
 
 if __name__ == "__main__":
     #tts.say("Brooks framework demonstration start")
     #tts.say("First, I would start training gaze detection.")
     #tts.say("For now, I will skip that.")
-    postureProxy.goToPosture("Sit", 0.5)
+##    postureProxy.goToPosture("Sit", 0.5)
     robot = Agent(["random", "gaze-directed"])
-    beliefs =[]
+    beliefs =[robot.get_probs()[1]]
+    epochs=100
     try:
-        motionProxy.setStiffnesses(headJointsHori, 0.8) #Set stiffness of limbs.
-        motionProxy.setStiffnesses(headJointsVerti,0.8)
-        for i in range(5):
-            face, eyes =findFace()
+##        motionProxy.setStiffnesses(headJointsHori, 0.8) #Set stiffness of limbs.
+##        motionProxy.setStiffnesses(headJointsVerti,0.8)
+        
+        for _ in range(epochs):
+            #face, eyes =findFace()
             choice = robot.get_policy()
+            
             if choice=="gaze-directed":
                 index=1
-                result=faceGaze(face)
+                #result=faceGaze(face)
+                result=10+random.randint(-5,5)
             else:
                 index=0
-                result=randomGaze()
+                result=15+random.randint(-5,5)
+                #result=randomGaze()
+                
             observation = time_to_observation(result,robot.attention,2,index)
             #observation[index] = policy_eval
             robot.update_policies(observation)
-            beliefs.append(observation)
+            belief=robot.get_probs()
+            belief = belief[1]
+            beliefs.append(belief)
+            
             #tts.say("Time was")
             #tts.say(str(round(result)))
             #tts.say("Trial done")
-        print(observation)
-        postureProxy.goToPosture("Sit", 0.5)
-        motionProxy.rest()
-        pythonBroker.shutdown()
+        print(beliefs)
+        plt.plot(beliefs)
+        plt.xlabel("Epochs")
+        plt.xlim([0, epochs])
+        plt.ylabel("P(gaze-directed)")
+        plt.ylim([0, 1])
+        plt.show()
+        
+##        postureProxy.goToPosture("Sit", 0.5)
+##        motionProxy.rest()
+##        pythonBroker.shutdown()
     except Exception as e:
-        print e
-        postureProxy.goToPosture("Sit", 0.5)
-        motionProxy.rest()
-        pythonBroker.shutdown()
+        print (e)
+##        postureProxy.goToPosture("Sit", 0.5)
+##        motionProxy.rest()
+##        pythonBroker.shutdown()

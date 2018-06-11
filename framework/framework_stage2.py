@@ -80,7 +80,7 @@ class Agent:
         probs = self.get_probs()
         choice = np.random.uniform()
         for i, p in enumerate(probs):
-            if p > choice:
+            if p < choice:
                 choice -= p
             else:
                 return self.policy_names[i]
@@ -503,7 +503,7 @@ def randomGaze():
 def time_to_observation(time, attention, nr_policies, index):
 
 	time = max(0, min(attention, time))
-	fitness = (attention - time)/attention
+	fitness = float(attention - time)/float(attention)
 
 	observation = [(1-fitness)/(nr_policies-1) for x in range(nr_policies)]
 	observation[index] = fitness
