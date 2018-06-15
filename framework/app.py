@@ -51,4 +51,4 @@ def test():
 
 # start flask app
 # app.run(host="0.0.0.0", port=5000)
-app.run(host="192.168.1.119", port=5000)
+app.run(host="192.168.1.119", port=6000)

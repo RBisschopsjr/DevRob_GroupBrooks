@@ -1,6 +1,6 @@
 
-useGazeServer = True
-newFaceDect = False
+useGazeServer = False
+newFaceDect = True
 
 if useGazeServer:
     from ServerGaze import getServerGaze
@@ -93,7 +93,9 @@ def takePicture(filename):
 
 def findFace(random_enable):
     cam = setUpCam()
-
+    directionList = [[0.5, 0.5],[-0.5,0.5],[-0.5,-0.5],[0.5,-0.5]]
+    index=0
+    counter=0
     while True:
         # image_container contains info about the image
         image_container = videoProxy.getImageRemote(cam)
@@ -150,9 +152,21 @@ def findFace(random_enable):
 
         if random_enable:
             isAbsolute=True
-            vertiRand = random.uniform(-0.5,0.5)
-            horiRand = random.uniform(-0.5,0.5)
+            if directionList[index][0]>0:
+                horiRand = random.uniform(0,directionList[index][0])
+            else:
+                horiRand= random.uniform(directionList[index][0],0)
+            if directionList[index][1]>0:
+                vertiRand = random.uniform(0,directionList[index][1])
+            else:
+                vertiRand= random.uniform(directionList[index][1],0)
             motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [horiRand, vertiRand], [0.5,0.5], isAbsolute)
+            counter+=1
+            if counter>3:
+                counter=0
+                index+=1
+            if index>3:
+                index=0
 
 #TODO: Implement determining what behaviour to pick.
 def getChoice():
