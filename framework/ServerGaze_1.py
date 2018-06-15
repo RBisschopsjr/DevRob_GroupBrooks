@@ -2,18 +2,19 @@ import requests
 import json
 import cv2
 
-# import time
-# start_time = time.time()
+import time
 
-imageName_1 = 'test.jpg'
-x_in_p = 0.6
-y_in_p = 0.2679
+
+# imageName_1 = 'test.jpg'
+# x_in_p = 0.6
+# y_in_p = 0.2679
 
 global serverURL
 serverURL = 'http://192.168.1.119:5000'
 
 def getServerGaze(imageName, x_val, y_val):
-    queryURL = serverURL + '/api/test?x='+str(x_in_p)+'&y='+str(y_in_p)
+    start_time = time.time()
+    queryURL = serverURL + '/api/test?x='+str(x_val)+'&y='+str(y_val)
     # print queryURL
     # prepare headers for http request
     content_type = 'image/jpeg'
@@ -32,10 +33,9 @@ def getServerGaze(imageName, x_val, y_val):
     y_new = float(gaze_json['y'])
     # print x_new
     # print y_new
+    print("--- Gaze detected in %s seconds ---" % (time.time() - start_time))
     return (y_new, x_new)
-# print("--- %s seconds ---" % (time.time() - start_time))
+
 # expected output: {u'message': u'image received. size=124x124'}
 
-print getServerGaze(imageName_1, x_in_p, y_in_p)
-
-print 'End of'
+# print getServerGaze(imageName_1, x_in_p, y_in_p)

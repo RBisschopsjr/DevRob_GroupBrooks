@@ -1,4 +1,11 @@
-import matlab.engine
+
+useGazeServer = True
+newFaceDect = True
+
+if useGazeServer:
+    from ServerGaze import getServerGaze
+else:
+    import matlab.engine
 
 import cv2
 import numpy as np
@@ -9,6 +16,10 @@ from naoqi import ALModule
 from naoqi import ALProxy
 from naoqi import ALBroker
 from turnAngle import getTurnAngle, adjust_gamma
+
+
+if newFaceDect:
+    import face_recognition
 
 import sys
 import matplotlib.pyplot as plt
@@ -30,7 +41,7 @@ global postureProxy
 print cv2.__version__
 
 PORT=9559
-IP="192.168.1.103"
+IP="192.168.1.105"
 pythonBroker = ALBroker("pythonBroker", "0.0.0.0", 9600, IP, PORT)
 memory = ALProxy("ALMemory", IP, PORT)
 tts = naoqi.ALProxy("ALTextToSpeech", IP, PORT)
@@ -41,8 +52,9 @@ videoProxy = naoqi.ALProxy('ALVideoDevice', IP, PORT)
 
 postureProxy = naoqi.ALProxy("ALRobotPosture", IP, PORT)
 
-print 'Starting Matlab ...'
-eng = matlab.engine.start_matlab()
+if not useGazeServer:
+    print 'Starting Matlab ...'
+    eng = matlab.engine.start_matlab()
 
 print 'Starting Program ...'
 ##for c number of trials:
@@ -95,29 +107,47 @@ def findFace(random_enable):
 
         image = np.array(values, np.uint8).reshape((height, width, 3))
 
-        cv2.imwrite("faceimage_test.png", image)
-        image = cv2.imread("faceimage_test.png")
+        imageName = 'faceimage_test.png'
+        cv2.imwrite(imageName, image)
 
-        face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-        eye_cascade = cv2.CascadeClassifier('haarcascade_eye.xml')
+        ## New Face Detector
+        if newFaceDect:
+            print 'Using New Face detector'
+            image = face_recognition.load_image_file(imageName)
+            faces = face_recognition.face_locations(image)
+            print 'Faces detected:', faces
+            if len(faces) > 0 :
+                (face_y, face_right, face_bottom, face_x) = faces[0]
+                face_w = face_right - face_x
+                face_h = face_bottom - face_y
 
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                tts.say("Found you")
+                print "found You"
+                return [face_x, face_y, face_w, face_h], None
 
-        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
-        if len(faces) > 0 :
-            for (x,y,w,h) in faces:
-                cv2.rectangle(image,(x,y),(x+w,y+h),(255,0,0),2)
-                roi_gray = gray[y:y+h, x:x+w]
-                roi_color = image[y:y+h, x:x+w]
-                eyes = eye_cascade.detectMultiScale(roi_gray)
-                for (ex,ey,ew,eh) in eyes:
-                    cv2.rectangle(roi_color,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
-            tts.say("Found you")
-            print "found You"
-            try:
-                return faces[0], eyes[0]
-            except:
-                return faces[0], None
+        ## OpenCV Face detection
+        else:
+            print 'Using OpenCV Face detector'
+            image = cv2.imread(imageName)
+            face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+            eye_cascade = cv2.CascadeClassifier('haarcascade_eye.xml')
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+            if len(faces) > 0 :
+                for (x,y,w,h) in faces:
+                    cv2.rectangle(image,(x,y),(x+w,y+h),(255,0,0),2)
+                    roi_gray = gray[y:y+h, x:x+w]
+                    roi_color = image[y:y+h, x:x+w]
+                    eyes = eye_cascade.detectMultiScale(roi_gray)
+                    for (ex,ey,ew,eh) in eyes:
+                        cv2.rectangle(roi_color,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
+                tts.say("Found you")
+                print "found You"
+                try:
+                    return faces[0], eyes[0]
+                except:
+                    return faces[0], None
+
         if random_enable:
             isAbsolute=True
             vertiRand = random.uniform(-0.5,0.5)
@@ -202,9 +232,10 @@ def faceGaze(face):
     Center on Face
     '''
     # tts.say("Centering Face")
-    ang_x, ang_y=-(face[0]+face[2]/2-160.0)/320.0, (face[1]+face[3]/2-120.0)/240.0
+    ang_x, ang_y = -(face[0]+face[2]/2-160.0)/320.0, (face[1]+face[3]/2-120.0)/240.0
     print ang_x, ang_y
     print 'centering face'
+    tts.say("centering face")
     motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [ang_x, ang_y], [0.5,0.5], isAbsolute)
     # save current image to be used for Gaze detector
 
@@ -252,28 +283,19 @@ def faceGaze(face):
     # save the new high brighness image as "bt_<imaName>"
     cv2.imwrite(imgName, cv2.cvtColor(imageBT, cv2.COLOR_RGB2BGR))
 
-    ### Call Gaze detector with high brightness Image
-    # TODO:
-    # 1. Since now face is centered: x,y = 0.5 can be used
-    # x_face_pct = 0.5
-    # y_face_pct = 0.5
-    # 2. Run face detection again and get the (x,y) of the face again
-
-    (y_gaze, x_gaze) = eng.callMatGaze(imgName, x_face_pct, y_face_pct, nargout=2) # output - Y, X format
-    print 'Gaze Pos:> x_gaze:',x_gaze, '     y_gaze:', y_gaze
-
+    if useGazeServer:
+        print 'Using Gaze Server ...'
+        (y_gaze, x_gaze) = getServerGaze(imageName_1, x_in_p, y_in_p)
+        print 'Gaze Pos:> x_gaze:',x_gaze, '     y_gaze:', y_gaze
+    else:
+        print 'Local Gaze'
+        (y_gaze, x_gaze) = eng.callMatGaze(imgName, x_face_pct, y_face_pct, nargout=2) # output - Y, X format
+        print 'Gaze Pos:> x_gaze:',x_gaze, '     y_gaze:', y_gaze
     ### calculate the head turnAngle
     # x in, y in, x out, y out
     (turnAngle_y, turnAngle_x) = getTurnAngle(imgName, x_face_pct, y_face_pct, x_gaze, y_gaze, saveImg=True)
 
-    '''
-    # DEBUG: images
-    1. 'faceimage_test.png'
-    2. 'faceCenterimage.png'
-    3. 'bt_faceCenterimage.png'
-    4. 'save_bt_faceCenterimage.png'
-    5. 'newPosition.png'
-    '''
+
 
     '''
     Look at gaze position directly
@@ -307,6 +329,7 @@ def faceGaze(face):
     x_limit_reached = False
     y_limit_reached = False
     while True:
+        print '\nturn_count::',turn_count
         # commandAngles_y = motionProxy.getAngles(headJointsVerti, False)
         sensorAngles_y = motionProxy.getAngles(headJointsVerti, True)
         # commandAngles_x = motionProxy.getAngles(headJointsHori, False)
@@ -322,7 +345,7 @@ def faceGaze(face):
         if not (sensorAngles_y > -1 and sensorAngles_y < 1):
             y_limit_reached = True
             turn_step_angle_y=0
-        if not y_limit_reached and not x_limited_reached:
+        if not y_limit_reached and not y_limit_reached:
             motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [turn_step_angle_x, turn_step_angle_y], [0.2,0.2], isAbsolute)
         else: # If limits reached...
             print "\n***INFO***: X and Y limits Reached\n"
@@ -334,31 +357,47 @@ def faceGaze(face):
             break
 
         ## TODO: Object detection for ball
+        print 'Looing for ball...'
         getBall = findBall()
         if getBall is not None:
             if getBall[0] > 0.0 and getBall[1] > 0.0:
                 print '\nFound Ball'
                 print getBall #(X, Y, radius)
                 # TODO: Center on the ball
-                # ang_x, ang_y=-(face[0]+face[2]/2-160.0)/320.0, (face[1]+face[3]/2-120.0)/240.0
-                # print ang_x, ang_y
-                # print 'centering face'
-                # motionProxy.angleInterpolation(headJointsVerti, ang_y, [0.5], isAbsolute)
-                # motionProxy.angleInterpolation(headJointsHori, ang_x, [0.5], isAbsolute)
+                # x, y, w, h
+                # x, y, radius
+                ball_x = getBall[0] - getBall[2]
+                ball_y = getBall[1] - getBall[2]
+                ball_w = getBall[0] + getBall[2]
+                ball_h = getBall[1] + getBall[2]
+                center_ball_x, center_ball_y = -( ball_x + ball_w/2 - 160.0 )/320.0, (ball_y + ball_h/2 - 120.0)/240.0
+                print '1. ball Pos. X ({}) Y ({})'.format(center_ball_x, center_ball_y)
                 (center_ball_y, center_ball_x) = getTurnAngle('ballimage_1.png', 0.5, 0.5, getBall[0], getBall[1])
+                print '2. ball Pos. X ({}) Y ({})'.format(center_ball_x, center_ball_y)
+
+                if center_ball_y>0.0:
+                    print 'Turn Down:', center_ball_y
+                else:
+                    print 'Turn Up:', center_ball_y
+
+                if center_ball_x>0.0:
+                    print 'Turn Left:', center_ball_x
+                else:
+                    print 'Turn Right:', center_ball_x
+
                 print 'centering Ball'
                 tts.say("centering Ball")
                 isAbsolute = False
                 motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [center_ball_x, center_ball_y], [1.0,1.0], isAbsolute)
-
                 tts.say("Task Complete")
                 break
-
+            ###
+        ###
         #safety
         if not turn_count:
             break
         turn_count -= 1 ## DEBUG:
-        print 'turn_count::',turn_count
+
 
         # totalTurnedAngle_x += turn_step_angle_x
         # totalTurnedAngle_y += turn_step_angle_y
@@ -375,9 +414,16 @@ def faceGaze(face):
         # if current_pos_x >= turnLimit_x and current_pos_y >= turnLimit_y :
         #     # Speak: turn limit reached
         #     break # break when only both limits were reached
+    ###
 
-
-    #
+    '''
+    # DEBUG: images
+    1. 'faceimage_test.png'
+    2. 'faceCenterimage.png'
+    3. 'bt_faceCenterimage.png'
+    4. 'save_bt_faceCenterimage.png'
+    5. 'newPosition.png'
+    '''
     print "\n Gaze follow END"
     return 20
 

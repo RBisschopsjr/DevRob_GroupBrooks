@@ -6,6 +6,11 @@ import math
 
 from turnAngle import getTurnAngle, adjust_gamma
 
+
+newFaceDect = False
+if newFaceDect:
+    import face_recognition
+    print 'importing new face'
 print 'Starting Matalb...'
 # eng = matlab.engine.start_matlab()
 
