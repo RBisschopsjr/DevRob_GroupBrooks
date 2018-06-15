@@ -19,16 +19,16 @@ global videoProxy
 global pythonBroker
 global postureProxy
 
-##PORT=9559
-##IP="192.168.1.102"
-##memory = ALProxy("ALMemory", IP, PORT)
-##tts =naoqi.ALProxy("ALTextToSpeech", IP, PORT)
-##motionProxy = naoqi.ALProxy("ALMotion", IP, PORT)
-##headJointsHori = "HeadYaw"
-##headJointsVerti = "HeadPitch"
-##videoProxy = naoqi.ALProxy('ALVideoDevice', IP, PORT)
-##pythonBroker = ALBroker("pythonBroker", "0.0.0.0", 9600, IP, PORT)
-##postureProxy = naoqi.ALProxy("ALRobotPosture", IP, PORT)
+PORT=9559
+IP="192.168.1.105"
+memory = ALProxy("ALMemory", IP, PORT)
+tts =naoqi.ALProxy("ALTextToSpeech", IP, PORT)
+motionProxy = naoqi.ALProxy("ALMotion", IP, PORT)
+headJointsHori = "HeadYaw"
+headJointsVerti = "HeadPitch"
+videoProxy = naoqi.ALProxy('ALVideoDevice', IP, PORT)
+pythonBroker = ALBroker("pythonBroker", "0.0.0.0", 9600, IP, PORT)
+postureProxy = naoqi.ALProxy("ALRobotPosture", IP, PORT)
 
 class Agent:
 
@@ -91,8 +91,12 @@ def setUpCam():
 
 def findFace():
     cam = setUpCam()
+    #directionList = [[0.5, 0.5],[-0.5,0.5],[-0.5,-0.5],[0.5,-0.5]]
+    index=0
+    counter=3
 
     while True:
+
         for num in range(0,5):
             # image_container contains info about the image
             image_container = videoProxy.getImageRemote(cam)
@@ -113,7 +117,6 @@ def findFace():
             eye_cascade = cv2.CascadeClassifier('haarcascade_eye.xml')
 
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
             faces = face_cascade.detectMultiScale(gray, 1.3, 5)
             if len(faces) > 0 :
     ##          for (x,y,w,h) in faces:
@@ -123,8 +126,8 @@ def findFace():
     ##              eyes = eye_cascade.detectMultiScale(roi_gray)
     ##              for (ex,ey,ew,eh) in eyes:
     ##                    cv2.rectangle(roi_color,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
-                #tts.say("Found you")
-                print "Found you"
+                tts.say("Found you")
+
                 try:
                     print faces[0],eyes[0]
                     return faces[0], eyes[0]
@@ -133,14 +136,20 @@ def findFace():
         isAbsolute=True
         vertiRand = random.uniform(-0.5,0.5)
         horiRand = random.uniform(-0.5,0.5)
-        motionProxy.angleInterpolation(headJointsHori, horiRand, [0.5], isAbsolute)
-        motionProxy.angleInterpolation(headJointsVerti, vertiRand, [0.5], isAbsolute)
+        motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [horiRand, vertiRand], [0.5,0.5], isAbsolute)
+        counter+=1
+        if counter>3:
+            counter==0
+            index+=1
+        if index>3:
+            index=00
+##        motionProxy.angleInterpolation(headJointsHori, horiRand, [0.5], isAbsolute)
+##        motionProxy.angleInterpolation(headJointsVerti, vertiRand, [0.5], isAbsolute)
 
 
 #TODO: Implement finding object through gaze.
 def faceGaze(face):
     #tts.say("Testing direction")
-    #y,x = -(face[0]-120.0)/240.0, (face[1]-160.0)/320.0
     x,y=-(face[0]+face[2]/2-160.0)/320.0, (face[1]+face[3]/2-120.0)/240.0
     isAbsolute=False
     motionProxy.angleInterpolation(headJointsVerti, y, [0.5], isAbsolute)
@@ -266,7 +275,7 @@ def randomGaze():
             maxRadius=100)          #Maximum circle radius
         if circles is not None:
             circle = circles[0,:][0]
-            print circle
+            print (circle)
             tts.say("I found the ball")
             return time.time()-timeSinceStartMovement
         else: #TODO: find the exception for not seeing green ball.
@@ -294,32 +303,32 @@ if __name__ == "__main__":
     #tts.say("Brooks framework demonstration start")
     #tts.say("First, I would start training gaze detection.")
     #tts.say("For now, I will skip that.")
-##    postureProxy.goToPosture("Sit", 0.5)
+    postureProxy.goToPosture("Sit", 0.5)
     robot = Agent(["random", "gaze-directed"])
-    beliefs =[robot.get_probs()[1]]
-    epochs=100
+    beliefs =[robot.get_probs()]
+    epochs=1
     try:
-##        motionProxy.setStiffnesses(headJointsHori, 0.8) #Set stiffness of limbs.
-##        motionProxy.setStiffnesses(headJointsVerti,0.8)
+        motionProxy.setStiffnesses(headJointsHori, 0.8) #Set stiffness of limbs.
+        motionProxy.setStiffnesses(headJointsVerti,0.8)
         
         for _ in range(epochs):
-            #face, eyes =findFace()
+            face, eyes =findFace()
+            print("hi")
             choice = robot.get_policy()
-            
             if choice=="gaze-directed":
                 index=1
-                #result=faceGaze(face)
-                result=10+random.randint(-5,5)
+                result=faceGaze(face)
+                #result=10+random.randint(-5,5)
             else:
                 index=0
-                result=15+random.randint(-5,5)
-                #result=randomGaze()
+                #result=15+random.randint(-5,5)
+                result=randomGaze()
                 
             observation = time_to_observation(result,robot.attention,2,index)
             #observation[index] = policy_eval
             robot.update_policies(observation)
             belief=robot.get_probs()
-            belief = belief[1]
+            belief = belief
             beliefs.append(belief)
             
             #tts.say("Time was")
@@ -328,16 +337,17 @@ if __name__ == "__main__":
         print(beliefs)
         plt.plot(beliefs)
         plt.xlabel("Epochs")
+        plt.title("Simulation without Nao where gaze-directed takes 10+-5 and random 15+-5 seconds")
         plt.xlim([0, epochs])
         plt.ylabel("P(gaze-directed)")
         plt.ylim([0, 1])
         plt.show()
         
-##        postureProxy.goToPosture("Sit", 0.5)
-##        motionProxy.rest()
-##        pythonBroker.shutdown()
+        postureProxy.goToPosture("Sit", 0.5)
+        motionProxy.rest()
+        pythonBroker.shutdown()
     except Exception as e:
         print (e)
-##        postureProxy.goToPosture("Sit", 0.5)
-##        motionProxy.rest()
-##        pythonBroker.shutdown()
+        postureProxy.goToPosture("Sit", 0.5)
+        motionProxy.rest()
+        pythonBroker.shutdown()

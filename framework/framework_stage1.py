@@ -122,8 +122,7 @@ def findFace(random_enable):
             isAbsolute=True
             vertiRand = random.uniform(-0.5,0.5)
             horiRand = random.uniform(-0.5,0.5)
-            motionProxy.angleInterpolation(headJointsHori, horiRand, [0.5], isAbsolute)
-            motionProxy.angleInterpolation(headJointsVerti, vertiRand, [0.5], isAbsolute)
+            motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [horiRand, vertiRand], [0.5,0.5], isAbsolute)
 
 #TODO: Implement determining what behaviour to pick.
 def getChoice():
@@ -206,8 +205,7 @@ def faceGaze(face):
     ang_x, ang_y=-(face[0]+face[2]/2-160.0)/320.0, (face[1]+face[3]/2-120.0)/240.0
     print ang_x, ang_y
     print 'centering face'
-    motionProxy.angleInterpolation(headJointsVerti, ang_y, [0.5], isAbsolute)
-    motionProxy.angleInterpolation(headJointsHori, ang_x, [0.5], isAbsolute)
+    motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [ang_x, ang_y], [0.5,0.5], isAbsolute)
     # save current image to be used for Gaze detector
 
     ## face detect 2nd time
@@ -318,17 +316,17 @@ def faceGaze(face):
         sensorAngles_y = sensorAngles_y[0]
         print 'X angle:',sensorAngles_x, '\t Y angle:',sensorAngles_y
         # turn one step in X & Y
-        if sensorAngles_x > -1 and sensorAngles_x < 1:
-            print 'X step turn'
-            motionProxy.angleInterpolation(headJointsHori, turn_step_angle_x, [0.2], isAbsolute)
-        else:
+        if not (sensorAngles_x > -1 and sensorAngles_x < 1):
             x_limit_reached = True
-
-        if sensorAngles_y > -1 and sensorAngles_y < 1:
-            print 'Y step turn'
-            motionProxy.angleInterpolation(headJointsVerti, turn_step_angle_y, [0.2], isAbsolute)
-        else:
+            turn_step_angle_x=0
+        if not (sensorAngles_y > -1 and sensorAngles_y < 1):
             y_limit_reached = True
+            turn_step_angle_y=0
+        if not y_limit_reached and not x_limited_reached:
+            motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [turn_step_angle_x, turn_step_angle_y], [0.2,0.2], isAbsolute)
+        else: # If limits reached...
+            print "\n***INFO***: X and Y limits Reached\n"
+            break
 
         # Limit check
         if x_limit_reached and y_limit_reached:
@@ -351,8 +349,8 @@ def faceGaze(face):
                 print 'centering Ball'
                 tts.say("centering Ball")
                 isAbsolute = False
-                motionProxy.angleInterpolation(headJointsVerti, center_ball_y, [1.0], isAbsolute)
-                motionProxy.angleInterpolation(headJointsHori, center_ball_x, [1.0], isAbsolute)
+                motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [center_ball_x, center_ball_y], [1.0,1.0], isAbsolute)
+
                 tts.say("Task Complete")
                 break
 
@@ -453,6 +451,7 @@ def randomGaze():
             horiRand = random.uniform(-0.5,0.5)
             motionProxy.angleInterpolation(headJointsHori, horiRand, [0.5], isAbsolute)
             motionProxy.angleInterpolation(headJointsVerti, vertiRand, [0.5], isAbsolute)
+            motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [horiRand, vertiRand], [0.5,0.5], isAbsolute)
     tts.say("I could not find the ball")
     print "I could not find the ball"
     return 20
