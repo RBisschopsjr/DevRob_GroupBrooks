@@ -10,7 +10,7 @@ import time
 # y_in_p = 0.2679
 
 global serverURL
-serverURL = 'http://192.168.1.119:5000'
+serverURL = 'http://192.168.1.119:6000'
 
 def getServerGaze(imageName, x_val, y_val):
     start_time = time.time()

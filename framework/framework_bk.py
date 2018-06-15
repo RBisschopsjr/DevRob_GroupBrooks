@@ -310,7 +310,7 @@ if __name__ == "__main__":
     postureProxy.goToPosture("Sit", 0.5)
     robot = Agent(["random", "gaze-directed"])
     beliefs =[robot.get_probs()]
-    epochs=1
+    epochs=0
     try:
         motionProxy.setStiffnesses(headJointsHori, 0.8) #Set stiffness of limbs.
         motionProxy.setStiffnesses(headJointsVerti,0.8)

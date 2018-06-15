@@ -1,6 +1,6 @@
 
 useGazeServer = True
-newFaceDect = True
+newFaceDect = False
 
 if useGazeServer:
     from ServerGaze import getServerGaze
@@ -285,7 +285,7 @@ def faceGaze(face):
 
     if useGazeServer:
         print 'Using Gaze Server ...'
-        (y_gaze, x_gaze) = getServerGaze(imageName_1, x_in_p, y_in_p)
+        (y_gaze, x_gaze) = getServerGaze(imgName, x_face_pct, y_face_pct)
         print 'Gaze Pos:> x_gaze:',x_gaze, '     y_gaze:', y_gaze
     else:
         print 'Local Gaze'
@@ -366,13 +366,14 @@ def faceGaze(face):
                 # TODO: Center on the ball
                 # x, y, w, h
                 # x, y, radius
-                ball_x = getBall[0] - getBall[2]
-                ball_y = getBall[1] - getBall[2]
-                ball_w = getBall[0] + getBall[2]
-                ball_h = getBall[1] + getBall[2]
-                center_ball_x, center_ball_y = -( ball_x + ball_w/2 - 160.0 )/320.0, (ball_y + ball_h/2 - 120.0)/240.0
+                center_ball_x, center_ball_y = -(getBall[0]-160.0)/320.0, (getBall[1]-120.0)/240.0
+##                ball_x = getBall[0] - getBall[2]
+##                ball_y = getBall[1] - getBall[2]
+##                ball_w = getBall[0] + getBall[2]
+##                ball_h = getBall[1] + getBall[2]
+##                center_ball_x, center_ball_y = -( ball_x + ball_w/2 - 160.0 )/320.0, (ball_y + ball_h/2 - 120.0)/240.0
                 print '1. ball Pos. X ({}) Y ({})'.format(center_ball_x, center_ball_y)
-                (center_ball_y, center_ball_x) = getTurnAngle('ballimage_1.png', 0.5, 0.5, getBall[0], getBall[1])
+                #(center_ball_y, center_ball_x) = getTurnAngle('ballimage_1.png', 0.5, 0.5, getBall[0], getBall[1])
                 print '2. ball Pos. X ({}) Y ({})'.format(center_ball_x, center_ball_y)
 
                 if center_ball_y>0.0:
