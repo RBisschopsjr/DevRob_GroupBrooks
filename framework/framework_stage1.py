@@ -471,8 +471,8 @@ if __name__ == "__main__":
     # cv2.waitKey(0)
     postureProxy.goToPosture("Sit", 0.5)
     try:
-        motionProxy.setStiffnesses(headJointsHori, 0.8) #Set stiffness of limbs.
-        motionProxy.setStiffnesses(headJointsVerti,0.8)
+        motionProxy.setStiffnesses(headJointsHori, 0.6) #Set stiffness of limbs.
+        motionProxy.setStiffnesses(headJointsVerti,0.6)
 
         for i in range(1):
             face, eyes = findFace(random_enable=True)

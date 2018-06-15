@@ -91,7 +91,7 @@ def setUpCam():
 
 def findFace():
     cam = setUpCam()
-    #directionList = [[0.5, 0.5],[-0.5,0.5],[-0.5,-0.5],[0.5,-0.5]]
+    directionList = [[0.5, 0.5],[-0.5,0.5],[-0.5,-0.5],[0.5,-0.5]]
     index=0
     counter=3
 
@@ -134,17 +134,21 @@ def findFace():
                 except:
                     return faces[0], None
         isAbsolute=True
-        vertiRand = random.uniform(-0.5,0.5)
-        horiRand = random.uniform(-0.5,0.5)
+        if directionList[index][0]>0:
+            horiRand = random.uniform(0,directionList[index][0])
+        else:
+            horiRand= random.uniform(directionList[index][0],0)
+        if directionList[index][1]>0:
+            vertiRand = random.uniform(0,directionList[index][1])
+        else:
+            vertiRand= random.uniform(directionList[index][1],0)
         motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [horiRand, vertiRand], [0.5,0.5], isAbsolute)
         counter+=1
         if counter>3:
-            counter==0
+            counter=0
             index+=1
         if index>3:
-            index=00
-##        motionProxy.angleInterpolation(headJointsHori, horiRand, [0.5], isAbsolute)
-##        motionProxy.angleInterpolation(headJointsVerti, vertiRand, [0.5], isAbsolute)
+            index=0
 
 
 #TODO: Implement finding object through gaze.
@@ -313,7 +317,6 @@ if __name__ == "__main__":
         
         for _ in range(epochs):
             face, eyes =findFace()
-            print("hi")
             choice = robot.get_policy()
             if choice=="gaze-directed":
                 index=1
@@ -335,13 +338,13 @@ if __name__ == "__main__":
             #tts.say(str(round(result)))
             #tts.say("Trial done")
         print(beliefs)
-        plt.plot(beliefs)
-        plt.xlabel("Epochs")
-        plt.title("Simulation without Nao where gaze-directed takes 10+-5 and random 15+-5 seconds")
-        plt.xlim([0, epochs])
-        plt.ylabel("P(gaze-directed)")
-        plt.ylim([0, 1])
-        plt.show()
+##        plt.plot(beliefs)
+##        plt.xlabel("Epochs")
+##        plt.title("Simulation without Nao where gaze-directed takes 10+-5 and random 15+-5 seconds")
+##        plt.xlim([0, epochs])
+##        plt.ylabel("P(gaze-directed)")
+##        plt.ylim([0, 1])
+##        plt.show()
         
         postureProxy.goToPosture("Sit", 0.5)
         motionProxy.rest()
