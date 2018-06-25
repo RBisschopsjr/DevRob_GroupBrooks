@@ -117,6 +117,7 @@ def getTurnAngle(image_path, x_in_p, y_in_p, x_out, y_out, saveImg = False, show
         plt.plot(x1, y1, marker = 'o')
         # plt.show()
         plt.savefig('save_'+image_path)
+        plt.close()
 
     if showImg:
         print 'Show Image'
@@ -125,6 +126,7 @@ def getTurnAngle(image_path, x_in_p, y_in_p, x_out, y_out, saveImg = False, show
         x1, y1 = [x_in, x_out], [y_in, y_out]
         plt.plot(x1, y1, marker = 'o')
         plt.show()
+        plt.close()
 
     return (turn_angle_Y, turn_angle_X)
 

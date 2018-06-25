@@ -41,7 +41,7 @@ global postureProxy
 print cv2.__version__
 
 PORT=9559
-IP="192.168.1.105"
+IP="192.168.1.103"
 pythonBroker = ALBroker("pythonBroker", "0.0.0.0", 9600, IP, PORT)
 memory = ALProxy("ALMemory", IP, PORT)
 tts = naoqi.ALProxy("ALTextToSpeech", IP, PORT)
@@ -57,13 +57,60 @@ if not useGazeServer:
     eng = matlab.engine.start_matlab()
 
 print 'Starting Program ...'
-##for c number of trials:
-##	while not face found:
-##		findFace()
-##	random= takeRandomNumberOnPreference
-##	PerformBehaviour(random)
-##	state if ball was found
-##shut down
+
+class Agent:
+
+    def __init__(self, policy_names):
+
+	# Maximum time of looking around
+        self.attention = 20
+        self.policy_names = policy_names
+        # Stores values to base decision on
+        self.policy_values = [1.0 for _ in policy_names]
+
+
+    '''
+	Returns the probability of choosing each of its different policies as a list.
+	This begins as a uniform distribution over the possible policies.
+    '''
+    def get_probs(self):
+        return [x/sum(self.policy_values) for x in self.policy_values]
+
+
+    '''
+	Chooses a specific policy (as a string name) to enact pseudo-randomly,
+	given its preferences.
+    '''
+    def get_policy(self):
+        probs = self.get_probs()
+        choice = np.random.uniform()
+        for i, p in enumerate(probs):
+            if p < choice:
+                choice -= p
+            else:
+                return self.policy_names[i]
+        return self.policy_names[-1]
+
+
+    '''
+	Updates the beliefs given an observations, which must be a probability vector as
+	a list	with length equal to the number of policies.
+    '''
+    def update_policies(self, observations):
+        if len(observations) != len(self.policy_values):
+            print("Observation length must equal the mumber of different policies")
+        else:
+            self.policy_values = [x + y for x, y in zip(self.policy_values, observations)]
+
+def time_to_observation(time, attention, nr_policies, index):
+
+	time = max(0, min(attention, time))
+	fitness = float(attention - time)/float(attention)
+
+	observation = [(1-fitness)/(nr_policies-1) for x in range(nr_policies)]
+	observation[index] = fitness
+
+	return observation
 
 def setUpCam():
     cam_name = "camera"  # Creates an identifier for the camera subscription
@@ -110,11 +157,12 @@ def findFace(random_enable):
         image = np.array(values, np.uint8).reshape((height, width, 3))
 
         imageName = 'faceimage_test.png'
+        # print '++++++++ writing image'
         cv2.imwrite(imageName, image)
 
         ## New Face Detector
         if newFaceDect:
-            print 'Using New Face detector'
+            # print 'Using New Face detector'
             image = face_recognition.load_image_file(imageName)
             faces = face_recognition.face_locations(image)
             print 'Faces detected:', faces
@@ -173,6 +221,226 @@ def getChoice():
     return True
     #return random.randint(0,1)==1
 
+
+#TODO: Implement finding object through gaze.
+def faceGaze(face):
+
+    tts.say("Testing direction")
+    print '\n=== get Gaze ===\n'
+    begin_time = time.time()
+    imgHeight = 240.0
+    imgWidth = 320.0
+
+    imgName = 'faceimage_test.png' # face detected Image
+    isAbsolute=False
+    '''
+    Center on Face
+    '''
+    # tts.say("Centering Face")
+    ang_x, ang_y = -(face[0]+face[2]/2-160.0)/320.0, (face[1]+face[3]/2-120.0)/240.0
+
+    before_time = time.time()-begin_time
+
+
+    print ang_x, ang_y
+    print 'centering face'
+    tts.say("centering face")
+
+
+    begin_time = time.time()
+
+    motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [ang_x, ang_y], [0.5,0.5], isAbsolute)
+    # save current image to be used for Gaze detector
+    before_time += time.time()-begin_time
+    ## face detect 2nd time
+    tts.say("Looking for face again")
+    newface, neweye = findFace(random_enable=False)
+    print 'newFace:', newface
+
+    begin_time = time.time()
+
+    # newFace: [85 94 76 76]
+    x = newface[0]
+    y = newface[1]
+    w = newface[2]
+    h = newface[3]
+
+    # img = cv2.imread(imgName)
+    # plt.imshow(img)
+    # x1, y1 = [x, x+w, x+w, x], [y, y, y+h, y+h]
+    # plt.plot(x1, y1, marker = 'x')
+    # # plt.show()
+    # # plt.savefig('save_center_face.png')
+    # plt.close()
+    # print 'face detect saveds'
+
+    x_face = float(x)+(float(w)/2.0)
+    y_face = float(y)+(float(h)/2.0)
+    print 'Head Pos   :> x:',x_face, '\t y:', y_face
+
+    # position in percentage - needed for Gaze network
+    x_face_pct = float(x_face/imgWidth)
+    y_face_pct = float(y_face/imgHeight)
+    print 'Head Pos(%):> x:',x_face_pct, '\t y:', y_face_pct
+
+    imgName = 'faceCenterimage.png'
+    takePicture(imgName)
+    print "Face picture saved"
+    # time.sleep(2)
+    '''
+    Gaze detection
+    '''
+    ### change image brighness before inserting to Gaze detector
+    img = cv2.imread(imgName)
+    imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+    imageBT = adjust_gamma(imgRGB, gamma=1.0)
+    imgName = 'bt_'+imgName
+    # save the new high brighness image as "bt_<imaName>"
+    cv2.imwrite(imgName, cv2.cvtColor(imageBT, cv2.COLOR_RGB2BGR))
+
+    if useGazeServer:
+        print 'Using Gaze Server ...'
+        (y_gaze, x_gaze) = getServerGaze(imgName, x_face_pct, y_face_pct)
+        print 'Gaze Pos:> x_gaze:',x_gaze, '     y_gaze:', y_gaze
+    else:
+        print 'Local Gaze'
+        (y_gaze, x_gaze) = eng.callMatGaze(imgName, x_face_pct, y_face_pct, nargout=2) # output - Y, X format
+        print 'Gaze Pos:> x_gaze:',x_gaze, '     y_gaze:', y_gaze
+    ### calculate the head turnAngle
+    # x in, y in, x out, y out
+    (turnAngle_y, turnAngle_x) = getTurnAngle(imgName, x_face_pct, y_face_pct, x_gaze, y_gaze, saveImg=True)
+
+
+
+    '''
+    Look at gaze position directly
+    '''
+
+    # motionProxy.angleInterpolation(headJointsVerti, turnAngle_y, [1.0], isAbsolute)
+    # motionProxy.angleInterpolation(headJointsHori, turnAngle_x, [1.0], isAbsolute)
+
+    '''
+    Follow gaze step by step
+    '''
+
+    ### TODO: follow the gaze step by step
+    # calc. angle per step
+    turn_step_angle_x = float(turnAngle_x/5.0)
+    turn_step_angle_y = float(turnAngle_y/5.0)
+    print 'turn_step_angle_x:',turn_step_angle_x, '\t turn_step_angle_y:', turn_step_angle_y
+
+    # return 20
+
+
+    totalTurnedAngle_x = 0
+    totalTurnedAngle_y = 0
+
+    turn_count = 30
+
+    x_limit_reached = False
+    y_limit_reached = False
+
+    time_taken = (time.time()-begin_time)+before_time
+
+    tts.say("Following gaze")
+
+    # time_taken = time.time() - begin_time
+    while time_taken<20:
+        print '*** time_taken:', time_taken
+
+        print '\nturn_count::',turn_count
+        tm1 = time.time()
+        # commandAngles_y = motionProxy.getAngles(headJointsVerti, False)
+        sensorAngles_y = motionProxy.getAngles(headJointsVerti, True)
+        # commandAngles_x = motionProxy.getAngles(headJointsHori, False)
+        sensorAngles_x = motionProxy.getAngles(headJointsHori, True)
+
+        sensorAngles_x = sensorAngles_x[0]
+        sensorAngles_y = sensorAngles_y[0]
+        print 'X angle:',sensorAngles_x, '\t Y angle:',sensorAngles_y
+        # turn one step in X & Y
+        if not (sensorAngles_x > -1 and sensorAngles_x < 1):
+            x_limit_reached = True
+            turn_step_angle_x=0
+        if not (sensorAngles_y > -1 and sensorAngles_y < 1):
+            y_limit_reached = True
+            turn_step_angle_y=0
+
+        if y_limit_reached:
+            turn_step_angle_y = 0.0
+
+        if x_limit_reached:
+            turn_step_angle_x = 0.0
+
+        print 'turn_step_angle_x:',turn_step_angle_x, '\t turn_step_angle_y:',turn_step_angle_y
+        motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [turn_step_angle_x, turn_step_angle_y], [0.1, 0.1], isAbsolute)
+
+
+        # Limit check
+        if x_limit_reached and y_limit_reached:
+            print "\n***INFO***: X and Y limits Reached\n"
+            tts.say("turn limit")
+            return 20
+
+        ## TODO: Object detection for ball
+        print 'Looing for ball...'
+        time_before_ball = time.time() - tm1
+        getBall = findBall()
+        time_1 = time.time()
+        if getBall is not None:
+            if getBall[0] > 0.0 and getBall[1] > 0.0:
+                tts.say("I found the ball")
+                print '\nFound Ball'
+                print getBall #(X, Y, radius)
+                # TODO: Center on the ball
+                # x, y, w, h
+                # x, y, radius
+                center_ball_x, center_ball_y = -(getBall[0]-160.0)/320.0, (getBall[1]-120.0)/240.0
+
+##                center_ball_x, center_ball_y = -( ball_x + ball_w/2 - 160.0 )/320.0, (ball_y + ball_h/2 - 120.0)/240.0
+                print '1. ball Pos. X ({}) Y ({})'.format(center_ball_x, center_ball_y)
+                #(center_ball_y, center_ball_x) = getTurnAngle('ballimage_1.png', 0.5, 0.5, getBall[0], getBall[1])
+                print '2. ball Pos. X ({}) Y ({})'.format(center_ball_x, center_ball_y)
+
+                if center_ball_y>0.0:
+                    print 'Turn Down:', center_ball_y
+                else:
+                    print 'Turn Up:', center_ball_y
+
+                if center_ball_x>0.0:
+                    print 'Turn Left:', center_ball_x
+                else:
+                    print 'Turn Right:', center_ball_x
+
+                print 'centering Ball'
+                tts.say("centering Ball")
+                isAbsolute = False
+                motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [center_ball_x, center_ball_y], [0.5,0.5], isAbsolute)
+                time_taken = (time.time()-time_1) + time_before_ball + time_taken
+                print 'Time taken:', time_taken
+                tts.say("Task Complete")
+                # break
+                return time_taken
+            ###
+        ###
+        #safety
+        if not turn_count:
+            tts.say('count limit')
+            break
+        turn_count -= 1 ## DEBUG:
+        # print 'turn_count::',turn_count
+
+    print "\n Gaze follow END - Time limit reached..."
+    return 20
+'''
+# DEBUG: images
+1. 'faceimage_test.png'
+2. 'faceCenterimage.png'
+3. 'bt_faceCenterimage.png'
+4. 'save_bt_faceCenterimage.png'
+5. 'newPosition.png'
+'''
 def findBall():
     cam = setUpCam()
 
@@ -233,160 +501,23 @@ def findBall():
     else:
         return None
 
-#TODO: Implement finding object through gaze.
-def faceGaze(face):
-    tts.say("Testing direction")
-    print '\n=== get Gaze ===\n'
-    imgHeight = 240.0
-    imgWidth = 320.0
+def randomGaze():
 
-    imgName = 'faceimage_test.png' # face detected Image
-    isAbsolute=False
-    '''
-    Center on Face
-    '''
-    # tts.say("Centering Face")
-    ang_x, ang_y = -(face[0]+face[2]/2-160.0)/320.0, (face[1]+face[3]/2-120.0)/240.0
-    print ang_x, ang_y
-    print 'centering face'
-    tts.say("centering face")
-    motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [ang_x, ang_y], [0.5,0.5], isAbsolute)
-    # save current image to be used for Gaze detector
-
-    ## face detect 2nd time
-    tts.say("Looking for face again")
-    newface, neweye = findFace(random_enable=False)
-    print 'newFace:', newface
-    # newFace: [85 94 76 76]
-    x = newface[0]
-    y = newface[1]
-    w = newface[2]
-    h = newface[3]
-
-    img = cv2.imread(imgName)
-    plt.imshow(img)
-    x1, y1 = [x, x+w, x+w, x], [y, y, y+h, y+h]
-    plt.plot(x1, y1, marker = 'x')
-    # plt.show()
-    plt.savefig('save_center_face.png')
-    plt.close()
-    print 'face detect saveds'
-
-    x_face = float(x)+(float(w)/2.0)
-    y_face = float(y)+(float(h)/2.0)
-    print 'Head Pos   :> x:',x_face, '\t y:', y_face
-
-    # position in percentage - needed for Gaze network
-    x_face_pct = float(x_face/imgWidth)
-    y_face_pct = float(y_face/imgHeight)
-    print 'Head Pos(%):> x:',x_face_pct, '\t y:', y_face_pct
-
-    imgName = 'faceCenterimage.png'
-    takePicture(imgName)
-    print "Face picture saved"
-    # time.sleep(2)
-    '''
-    Gaze detection
-    '''
-    ### change image brighness before inserting to Gaze detector
-    img = cv2.imread(imgName)
-    imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-    imageBT = adjust_gamma(imgRGB, gamma=1.5)
-    imgName = 'bt_'+imgName
-    # save the new high brighness image as "bt_<imaName>"
-    cv2.imwrite(imgName, cv2.cvtColor(imageBT, cv2.COLOR_RGB2BGR))
-
-    if useGazeServer:
-        print 'Using Gaze Server ...'
-        (y_gaze, x_gaze) = getServerGaze(imgName, x_face_pct, y_face_pct)
-        print 'Gaze Pos:> x_gaze:',x_gaze, '     y_gaze:', y_gaze
-    else:
-        print 'Local Gaze'
-        (y_gaze, x_gaze) = eng.callMatGaze(imgName, x_face_pct, y_face_pct, nargout=2) # output - Y, X format
-        print 'Gaze Pos:> x_gaze:',x_gaze, '     y_gaze:', y_gaze
-    ### calculate the head turnAngle
-    # x in, y in, x out, y out
-    (turnAngle_y, turnAngle_x) = getTurnAngle(imgName, x_face_pct, y_face_pct, x_gaze, y_gaze, saveImg=True)
-
-
-
-    '''
-    Look at gaze position directly
-    '''
-
-    # motionProxy.angleInterpolation(headJointsVerti, turnAngle_y, [1.0], isAbsolute)
-    # motionProxy.angleInterpolation(headJointsHori, turnAngle_x, [1.0], isAbsolute)
-
-    '''
-    Follow gaze step by step
-    '''
-
-    ### TODO: follow the gaze step by step
-    # calc. angle per step
-    turn_step_angle_x = float(turnAngle_x/10.0)
-    turn_step_angle_y = float(turnAngle_y/10.0)
-    print 'turn_step_angle_x:',turn_step_angle_x, '\t turn_step_angle_y:', turn_step_angle_y
-
-    # return 20
-
-
-    totalTurnedAngle_x = 0
-    totalTurnedAngle_y = 0
-
-    turn_count = 12
-    # current_pos_x = 0.5
-    # current_pos_y = 0.5
-    #
-    # turnLimit_x = 1
-    # turnLimit_y = 1
-    x_limit_reached = False
-    y_limit_reached = False
-    while True:
-        print '\nturn_count::',turn_count
-        # commandAngles_y = motionProxy.getAngles(headJointsVerti, False)
-        sensorAngles_y = motionProxy.getAngles(headJointsVerti, True)
-        # commandAngles_x = motionProxy.getAngles(headJointsHori, False)
-        sensorAngles_x = motionProxy.getAngles(headJointsHori, True)
-
-        sensorAngles_x = sensorAngles_x[0]
-        sensorAngles_y = sensorAngles_y[0]
-        print 'X angle:',sensorAngles_x, '\t Y angle:',sensorAngles_y
-        # turn one step in X & Y
-        if not (sensorAngles_x > -1 and sensorAngles_x < 1):
-            x_limit_reached = True
-            turn_step_angle_x=0
-        if not (sensorAngles_y > -1 and sensorAngles_y < 1):
-            y_limit_reached = True
-            turn_step_angle_y=0
-        if not y_limit_reached and not y_limit_reached:
-            motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [turn_step_angle_x, turn_step_angle_y], [0.2,0.2], isAbsolute)
-        else: # If limits reached...
-            print "\n***INFO***: X and Y limits Reached\n"
-            break
-
-        # Limit check
-        if x_limit_reached and y_limit_reached:
-            print "\n***INFO***: X and Y limits Reached\n"
-            break
-
-        ## TODO: Object detection for ball
-        print 'Looing for ball...'
+    isAbsolute=True
+    time_taken = 0
+    while (time_taken)<20:
+        print '*** time_taken:', time_taken
+        #image_container contains iinfo about the image
         getBall = findBall()
+        tm1 = time.time()
         if getBall is not None:
             if getBall[0] > 0.0 and getBall[1] > 0.0:
+                tts.say("I found the ball")
                 print '\nFound Ball'
                 print getBall #(X, Y, radius)
-                # TODO: Center on the ball
-                # x, y, w, h
-                # x, y, radius
+
                 center_ball_x, center_ball_y = -(getBall[0]-160.0)/320.0, (getBall[1]-120.0)/240.0
-##                ball_x = getBall[0] - getBall[2]
-##                ball_y = getBall[1] - getBall[2]
-##                ball_w = getBall[0] + getBall[2]
-##                ball_h = getBall[1] + getBall[2]
-##                center_ball_x, center_ball_y = -( ball_x + ball_w/2 - 160.0 )/320.0, (ball_y + ball_h/2 - 120.0)/240.0
-                print '1. ball Pos. X ({}) Y ({})'.format(center_ball_x, center_ball_y)
+
                 #(center_ball_y, center_ball_x) = getTurnAngle('ballimage_1.png', 0.5, 0.5, getBall[0], getBall[1])
                 print '2. ball Pos. X ({}) Y ({})'.format(center_ball_x, center_ball_y)
 
@@ -403,47 +534,26 @@ def faceGaze(face):
                 print 'centering Ball'
                 tts.say("centering Ball")
                 isAbsolute = False
-                motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [center_ball_x, center_ball_y], [1.0,1.0], isAbsolute)
+                motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [center_ball_x, center_ball_y], [0.5,0.5], isAbsolute)
+                # time_taken = (time.time()-time_1) + time_before_ball
+
+
+                tm2 = time.time()-tm1
+                print 'Time taken:', time_taken+tm2
                 tts.say("Task Complete")
-                break
-            ###
-        ###
-        #safety
-        if not turn_count:
-            break
-        turn_count -= 1 ## DEBUG:
-
-
-        # totalTurnedAngle_x += turn_step_angle_x
-        # totalTurnedAngle_y += turn_step_angle_y
-
-        #Limit the maximum head turn - for safety of Nao
-        ## TODO: get the current position angle from the absolute position
-        # try using Nao API
-        # getAngles
-        # getLimits
-        # getPosition
-
-        # TODO: Calc current position (x,y) using above values
-
-        # if current_pos_x >= turnLimit_x and current_pos_y >= turnLimit_y :
-        #     # Speak: turn limit reached
-        #     break # break when only both limits were reached
-    ###
-
-    '''
-    # DEBUG: images
-    1. 'faceimage_test.png'
-    2. 'faceCenterimage.png'
-    3. 'bt_faceCenterimage.png'
-    4. 'save_bt_faceCenterimage.png'
-    5. 'newPosition.png'
-    '''
-    print "\n Gaze follow END"
+                return time_taken+tm2
+        else:
+            vertiRand = random.uniform(-1,1)
+            horiRand = random.uniform(-1,1)
+            # motionProxy.angleInterpolation(headJointsHori, horiRand, [0.5], isAbsolute)
+            # motionProxy.angleInterpolation(headJointsVerti, vertiRand, [0.5], isAbsolute)
+            motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [horiRand, vertiRand], [1.0, 1.0], isAbsolute)
+        time_taken = time.time()-tm1+time_taken
+    tts.say("I could not find the ball")
+    print "I could not find the ball"
     return 20
 
-
-def randomGaze():
+def randomGaze_bk():
     cam = setUpCam()
 
     timeSinceStartMovement = time.time()
@@ -461,8 +571,8 @@ def randomGaze():
 
         image=np.array(values, np.uint8).reshape((height, width,3))
 
-        cv2.imwrite("ballimage.png", image)
-        image=cv2.imread("ballimage.png")
+        cv2.imwrite("ballimage_1.png", image)
+        image=cv2.imread("ballimage_1.png")
 
         lower_green = np.array([36,100,100], dtype = np.uint8)
         upper_green = np.array([86,255,255], dtype=np.uint8)
@@ -510,9 +620,9 @@ def randomGaze():
         else: #TODO: find the exception for not seeing green ball.
             vertiRand = random.uniform(-0.5,0.5)
             horiRand = random.uniform(-0.5,0.5)
-            motionProxy.angleInterpolation(headJointsHori, horiRand, [0.5], isAbsolute)
-            motionProxy.angleInterpolation(headJointsVerti, vertiRand, [0.5], isAbsolute)
-            motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [horiRand, vertiRand], [0.5,0.5], isAbsolute)
+            # motionProxy.angleInterpolation(headJointsHori, horiRand, [0.5], isAbsolute)
+            # motionProxy.angleInterpolation(headJointsVerti, vertiRand, [0.5], isAbsolute)
+            motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [horiRand, vertiRand], [0.5, 0.5], isAbsolute)
     tts.say("I could not find the ball")
     print "I could not find the ball"
     return 20
@@ -526,48 +636,78 @@ def getDirection(x,y):
     return x, y
 
 if __name__ == "__main__":
-    #tts.say("Brooks framework demonstration start")
+    tts.say("Starting Test")
     #tts.say("First, I would start training gaze detection.")
     #tts.say("For now, I will skip that.")
     # cv2.waitKey(0)
+
     postureProxy.goToPosture("Sit", 0.5)
+    robot = Agent(["random", "gaze-directed"])
+
+    robot.policy_values = [28.567540961527552, 36.43245903847245]
+    print 'policy_values:',robot.policy_values
+    robot.update_policies([0.439500630177347, 0.5604993698226531])
+    beliefs =[robot.get_probs()]
+    print 'start belief:',beliefs
+    epochs = 2
     try:
         motionProxy.setStiffnesses(headJointsHori, 0.6) #Set stiffness of limbs.
         motionProxy.setStiffnesses(headJointsVerti,0.6)
+        print "Loop Starting..."
+        for i in range(epochs):
+            print '\nIteration:',i
+            tts.say("test "+str(i+1))
+            face, eyes =findFace(random_enable=True)
+            choice = robot.get_policy()
+            print 'choice:', choice
+            # tts.say(choice)
+            # if choice=="gaze-directed":
+            #     index=1
+            #     result= faceGaze(face)
+            # else:
+            #     index=0
+            #     result = randomGaze()
+            result= faceGaze(face)
+            # observation = time_to_observation(result,robot.attention,2,index)
+            # robot.update_policies(observation)
+            # beliefs.append(observation)
+            # robot.update_policies(observation)
+            # beliefs.append(robot.get_probs())
 
-        for i in range(1):
-            face, eyes = findFace(random_enable=True)
-            print 'face:', face
-            print 'eyes:', eyes
-            choice = getChoice()
-            if choice:
-                result=faceGaze(face)
-            else:
-                result=randomGaze()
-            takePicture("newPosition.png")
-            tts.say("Time was")
-            tts.say(str(round(result)))
-            tts.say("Trial done")
-            print "time was"
-            print round(result)
-            print "Trial done"
+            postureProxy.goToPosture("Sit", 0.5)
+            tts.say("Change ball position")
+            time.sleep(3)
 
-        # time.sleep(5)
-        # print 'Turning to new position'
-        # isAbsolute=False
-        # motionProxy.angleInterpolation(headJointsVerti, -1.0, [1.0], isAbsolute)
-        # motionProxy.angleInterpolation(headJointsHori, -1.0, [1.0], isAbsolute)
+        tts.say("Trial done")
+        print 'beliefs'
+        print beliefs
+        print 'policy_values:',robot.policy_values
 
+        # plt.plot(beliefs)
+        rdata = []
+        gdata = []
+        for [val1, val2] in beliefs:
+            # print val1, val2
+            rdata.append(val1)
+            gdata.append(val2)
+        # line_up, = plt.plot([1,2,3], label='Line 2')
+        leg1, = plt.plot(rdata, label='Random')
+        leg2, = plt.plot(gdata, label='Gaze')
+        plt.legend(handles=[leg1, leg2])
+        plt.xlabel("Epochs")
+        plt.title("Nao Robot Testing results")
+        # plt.xlim([0, epochs])
+        plt.ylabel("P(gaze-directed)")
+        # plt.ylim([0, 1])
 
-        time.sleep(3)
-        print 'done'
         postureProxy.goToPosture("Sit", 0.5)
         motionProxy.rest()
         pythonBroker.shutdown()
-        sys.exit(0)
+
+        # plt.show()
+
     except Exception as e:
         print e
         postureProxy.goToPosture("Sit", 0.5)
         motionProxy.rest()
         pythonBroker.shutdown()
-        sys.exit(0)

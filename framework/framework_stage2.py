@@ -352,7 +352,9 @@ def faceGaze(face):
     # turnLimit_y = 1
     x_limit_reached = False
     y_limit_reached = False
-    while True:
+    time_start = time.time()
+    while time.time()-time_start<20:
+        print '\nturn_count::',turn_count
         # commandAngles_y = motionProxy.getAngles(headJointsVerti, False)
         sensorAngles_y = motionProxy.getAngles(headJointsVerti, True)
         # commandAngles_x = motionProxy.getAngles(headJointsHori, False)
@@ -362,38 +364,63 @@ def faceGaze(face):
         sensorAngles_y = sensorAngles_y[0]
         print 'X angle:',sensorAngles_x, '\t Y angle:',sensorAngles_y
         # turn one step in X & Y
-        if sensorAngles_x > -1 and sensorAngles_x < 1:
-            motionProxy.angleInterpolation(headJointsHori, turn_step_angle_x, [0.2], isAbsolute)
-            print 'X step turn'
-        else:
+        if not (sensorAngles_x > -1 and sensorAngles_x < 1):
             x_limit_reached = True
-
-        if sensorAngles_y > -1 and sensorAngles_y < 1:
-            motionProxy.angleInterpolation(headJointsVerti, turn_step_angle_y, [0.2], isAbsolute)
-            print 'Y step turn'
-        else:
+            turn_step_angle_x=0
+        if not (sensorAngles_y > -1 and sensorAngles_y < 1):
             y_limit_reached = True
+            turn_step_angle_y=0
+        if not y_limit_reached and not y_limit_reached:
+            motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [turn_step_angle_x, turn_step_angle_y], [0.2,0.2], isAbsolute)
+        else: # If limits reached...
+            print "\n***INFO***: X and Y limits Reached\n"
+            return 20
 
         # Limit check
         if x_limit_reached and y_limit_reached:
             print "\n***INFO***: X and Y limits Reached\n"
-            break
+            return 20
 
         ## TODO: Object detection for ball
+        print 'Looing for ball...'
         getBall = findBall()
         if getBall is not None:
             if getBall[0] > 0.0 and getBall[1] > 0.0:
-                tts.say("Found Ball through gaze following")
+                time_taken = time.time()
                 print '\nFound Ball'
                 print getBall #(X, Y, radius)
                 # TODO: Center on the ball
-                # ang_x, ang_y=-(face[0]+face[2]/2-160.0)/320.0, (face[1]+face[3]/2-120.0)/240.0
-                # print ang_x, ang_y
-                # print 'centering face'
-                # motionProxy.angleInterpolation(headJointsVerti, ang_y, [0.5], isAbsolute)
-                # motionProxy.angleInterpolation(headJointsHori, ang_x, [0.5], isAbsolute)
-                break
+                # x, y, w, h
+                # x, y, radius
+                center_ball_x, center_ball_y = -(getBall[0]-160.0)/320.0, (getBall[1]-120.0)/240.0
+##                ball_x = getBall[0] - getBall[2]
+##                ball_y = getBall[1] - getBall[2]
+##                ball_w = getBall[0] + getBall[2]
+##                ball_h = getBall[1] + getBall[2]
+##                center_ball_x, center_ball_y = -( ball_x + ball_w/2 - 160.0 )/320.0, (ball_y + ball_h/2 - 120.0)/240.0
+                print '1. ball Pos. X ({}) Y ({})'.format(center_ball_x, center_ball_y)
+                #(center_ball_y, center_ball_x) = getTurnAngle('ballimage_1.png', 0.5, 0.5, getBall[0], getBall[1])
+                print '2. ball Pos. X ({}) Y ({})'.format(center_ball_x, center_ball_y)
 
+                if center_ball_y>0.0:
+                    print 'Turn Down:', center_ball_y
+                else:
+                    print 'Turn Up:', center_ball_y
+
+                if center_ball_x>0.0:
+                    print 'Turn Left:', center_ball_x
+                else:
+                    print 'Turn Right:', center_ball_x
+
+                print 'centering Ball'
+                tts.say("centering Ball")
+                isAbsolute = False
+                motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [center_ball_x, center_ball_y], [1.0,1.0], isAbsolute)
+                tts.say("Task Complete")
+                # break
+                return (time_taken-time_start)
+            ###
+        ###
         #safety
         if not turn_count:
             break
