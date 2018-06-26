@@ -2,6 +2,9 @@
 useGazeServer = False
 newFaceDect = True
 
+# If we want to use communication between two computers, set useGazeServer to true.
+# This was implemented due connection problems with the robot and Sameera's computer,
+# but this solution did not work either.
 if useGazeServer:
     from ServerGaze import getServerGaze
 else:
@@ -41,7 +44,7 @@ global postureProxy
 print cv2.__version__
 
 PORT=9559
-IP="192.168.1.103"
+IP="192.168.1.103" #IP of robot we use. Adjust as needed.
 pythonBroker = ALBroker("pythonBroker", "0.0.0.0", 9600, IP, PORT)
 memory = ALProxy("ALMemory", IP, PORT)
 tts = naoqi.ALProxy("ALTextToSpeech", IP, PORT)
@@ -59,7 +62,11 @@ if not useGazeServer:
 print 'Starting Program ...'
 
 class Agent:
-
+    '''
+    Class that represents the machine learning part of our code. Keeps track of which policy seems
+    to be better at a given time by increasing the 'scores' of each one, and dividing each score with
+    the total score to get the probability that we should select the related policy.
+    '''
     def __init__(self, policy_names):
 
 	# Maximum time of looking around
@@ -103,6 +110,9 @@ class Agent:
             self.policy_values = [x + y for x, y in zip(self.policy_values, observations)]
 
 def time_to_observation(time, attention, nr_policies, index):
+        '''
+        Translates the time into an observation with which we can increase the score. Return the observation.
+        '''
 
 	time = max(0, min(attention, time))
 	fitness = float(attention - time)/float(attention)
@@ -113,6 +123,10 @@ def time_to_observation(time, attention, nr_policies, index):
 	return observation
 
 def setUpCam():
+    '''
+    Sets up the camera to take pictures in a specific manner. Unsubscribe cameras to be safe from
+    interference from other programs using the cameras.
+    '''
     cam_name = "camera"  # Creates an identifier for the camera subscription
     cam_type = 0  # 0 for top camera, 1 for bottom camera
     res = 1  # 320x240
@@ -127,6 +141,9 @@ def setUpCam():
     return cam
 
 def takePicture(filename):
+    '''
+    Take a picture using a camera and save it under filename to the pc.
+    '''
     cam = setUpCam()
     # image_container contains info about the image
     image_container = videoProxy.getImageRemote(cam)
@@ -139,6 +156,10 @@ def takePicture(filename):
     cv2.imwrite(filename, image)
 
 def findFace(random_enable):
+    '''
+    Depending on whether we are allowed to do random search, either keep looking around and making pictures
+    until we spot a face in a picture, or keep looking in same direction until we spot a face.
+    '''
     cam = setUpCam()
     directionList = [[0.5, 0.5],[-0.5,0.5],[-0.5,-0.5],[0.5,-0.5]]
     index=0
@@ -160,7 +181,7 @@ def findFace(random_enable):
         # print '++++++++ writing image'
         cv2.imwrite(imageName, image)
 
-        ## New Face Detector
+        ## Use the newer face detector that works better than the other one.
         if newFaceDect:
             # print 'Using New Face detector'
             image = face_recognition.load_image_file(imageName)
@@ -198,7 +219,8 @@ def findFace(random_enable):
                 except:
                     return faces[0], None
 
-        if random_enable:
+        if random_enable: #Perform random search for a face in the environment. Move in a semi random fashion
+            #by randomly look in left up, right up, right down, left down.
             isAbsolute=True
             if directionList[index][0]>0:
                 horiRand = random.uniform(0,directionList[index][0])
@@ -216,15 +238,13 @@ def findFace(random_enable):
             if index>3:
                 index=0
 
-#TODO: Implement determining what behaviour to pick.
-def getChoice():
-    return True
-    #return random.randint(0,1)==1
 
 
-#TODO: Implement finding object through gaze.
 def faceGaze(face):
-
+    '''
+    Perform face gaze behaviour: center on the earlier spotted face, try to see if it is still there and
+    follow it until either time ran out, we reached the limit, or we find the desired green ball.
+    '''
     tts.say("Testing direction")
     print '\n=== get Gaze ===\n'
     begin_time = time.time()
@@ -383,8 +403,7 @@ def faceGaze(face):
             tts.say("turn limit")
             return 20
 
-        ## TODO: Object detection for ball
-        print 'Looing for ball...'
+        print 'Looking for ball...'
         time_before_ball = time.time() - tm1
         getBall = findBall()
         time_1 = time.time()
@@ -502,12 +521,15 @@ def findBall():
         return None
 
 def randomGaze():
-
+    '''
+    Random gaze behaviour: look randomly around while snapping pictures at random coordinates,
+    until we snap a picture with the green ball in it. Center on the green ball when we find it.
+    '''
     isAbsolute=True
     time_taken = 0
     while (time_taken)<20:
         print '*** time_taken:', time_taken
-        #image_container contains iinfo about the image
+        #image_container contains info about the image
         getBall = findBall()
         tm1 = time.time()
         if getBall is not None:
@@ -545,100 +567,16 @@ def randomGaze():
         else:
             vertiRand = random.uniform(-1,1)
             horiRand = random.uniform(-1,1)
-            # motionProxy.angleInterpolation(headJointsHori, horiRand, [0.5], isAbsolute)
-            # motionProxy.angleInterpolation(headJointsVerti, vertiRand, [0.5], isAbsolute)
             motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [horiRand, vertiRand], [1.0, 1.0], isAbsolute)
         time_taken = time.time()-tm1+time_taken
     tts.say("I could not find the ball")
     print "I could not find the ball"
-    return 20
-
-def randomGaze_bk():
-    cam = setUpCam()
-
-    timeSinceStartMovement = time.time()
-    isAbsolute=True
-    while (time.time()-timeSinceStartMovement)<20:
-        #image_container contains iinfo about the image
-        image_container = videoProxy.getImageRemote(cam)
-
-        #get image width and height
-        width=image_container[0]
-        height=image_container[1]
-
-        #the 6th element contains the pixel data
-        values = map(ord,list(image_container[6]))
-
-        image=np.array(values, np.uint8).reshape((height, width,3))
-
-        cv2.imwrite("ballimage_1.png", image)
-        image=cv2.imread("ballimage_1.png")
-
-        lower_green = np.array([36,100,100], dtype = np.uint8)
-        upper_green = np.array([86,255,255], dtype=np.uint8)
-
-        #convert to a hsv colorspace
-        hsvImage=cv2.cvtColor(image,cv2.COLOR_BGR2HSV)
-
-        #Create a treshold mask
-        color_mask=cv2.inRange(hsvImage,lower_green,upper_green)
-
-        #apply the mask on the image
-        green_image = cv2.bitwise_and(image,image,mask=color_mask)
-
-        kernel=np.ones((9,9),np.uint8)
-        #Remove small objects
-        opening =cv2.morphologyEx(color_mask,cv2.MORPH_OPEN,kernel)
-        #Close small openings
-        closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
-        #Apply a blur to smooth the edges
-        smoothed_mask = cv2.GaussianBlur(closing, (9,9),0)
-
-        #Apply our (smoothend and denoised) mask
-        #to our original image to get everything that is blue.
-        green_image = cv2.bitwise_and(image,image,mask=smoothed_mask)
-
-        #Get the grayscale image (last channel of the HSV image
-        gray_image = green_image[:,:,2]
-
-        #Use a hough transform to find circular objects in the image.
-        # cv2.HOUGH_GRADIENT
-        circles = cv2.HoughCircles(#cv.CV_HOUGH_GRADIENT
-            gray_image,             #Input image to perform the transformation on
-            cv2.HOUGH_GRADIENT,     #Method of detection
-            1,                      #Ignore this one
-            5,                      #Min pixel dist between centers of detected circles
-            param1=200,             #Ignore this one as well
-            param2=20,              #Accumulator threshold: smaller = the more (false) circles
-            minRadius=5,            #Minimum circle radius
-            maxRadius=100)          #Maximum circle radius
-        if circles is not None:
-            circle = circles[0,:][0]
-            tts.say("I found the ball")
-            print "I found the ball"
-            return time.time()-timeSinceStartMovement
-        else: #TODO: find the exception for not seeing green ball.
-            vertiRand = random.uniform(-0.5,0.5)
-            horiRand = random.uniform(-0.5,0.5)
-            # motionProxy.angleInterpolation(headJointsHori, horiRand, [0.5], isAbsolute)
-            # motionProxy.angleInterpolation(headJointsVerti, vertiRand, [0.5], isAbsolute)
-            motionProxy.angleInterpolation([headJointsHori,headJointsVerti], [horiRand, vertiRand], [0.5, 0.5], isAbsolute)
-    tts.say("I could not find the ball")
-    print "I could not find the ball"
-    return 20
+    return 20 #Return twenty since we failed to find the ball.
 
 #End of randomGaze function.
 
-def getDirection(x,y):
-    while x>1 or y>1 or x<-1 or y<-1:
-        x=x/10
-        y=y/10
-    return x, y
-
 if __name__ == "__main__":
     tts.say("Starting Test")
-    #tts.say("First, I would start training gaze detection.")
-    #tts.say("For now, I will skip that.")
     # cv2.waitKey(0)
 
     postureProxy.goToPosture("Sit", 0.5)
@@ -660,6 +598,9 @@ if __name__ == "__main__":
             face, eyes =findFace(random_enable=True)
             choice = robot.get_policy()
             print 'choice:', choice
+            #Code below documented for demonstration of gaze behaviour. Under training, code below
+            #is not commented (and result= faceGaze(face) is)
+            
             # tts.say(choice)
             # if choice=="gaze-directed":
             #     index=1
@@ -699,7 +640,7 @@ if __name__ == "__main__":
         # plt.xlim([0, epochs])
         plt.ylabel("P(gaze-directed)")
         # plt.ylim([0, 1])
-
+        # End of code, shut robot down.
         postureProxy.goToPosture("Sit", 0.5)
         motionProxy.rest()
         pythonBroker.shutdown()
@@ -708,6 +649,7 @@ if __name__ == "__main__":
 
     except Exception as e:
         print e
+        #Code ran into an error: safely turn the robot off to prevent overheating.
         postureProxy.goToPosture("Sit", 0.5)
         motionProxy.rest()
         pythonBroker.shutdown()
