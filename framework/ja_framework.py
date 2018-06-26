@@ -1,4 +1,7 @@
 
+# If we want to use communication between two computers, set useGazeServer to true.
+# This was implemented due connection problems with the robot and Sameera's computer,
+# but this solution did not work either.
 useGazeServer = False
 newFaceDect = True
 
@@ -24,16 +27,16 @@ import sys
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 
-global IP
-global PORT
-global memory
-global tts
-global motionProxy
-global headJointsHori
-global headJointsVerti
-global videoProxy
-global pythonBroker
-global postureProxy
+global IP #IP of Nao we use. Adjust as needed.
+global PORT # Port of the Nao to connect to it.
+global memory # Memory of the Nao
+global tts # Speech module of Nao.
+global motionProxy # The motion Proxy of the Nao
+global headJointsHori # The joints for moving the head left and right
+global headJointsVerti # The joints for moving the head up and down.
+global videoProxy # The video proxy of the Nao
+global pythonBroker # The python broker of the nao
+global postureProxy # The posture proxy of the nao.
 
 print cv2.__version__
 
@@ -56,7 +59,11 @@ if not useGazeServer:
 print 'Starting Program ...'
 
 class Agent:
-
+    '''
+    Class that represents the machine learning part of our code. Keeps track of which policy seems
+    to be better at a given time by increasing the 'scores' of each one, and dividing each score with
+    the total score to get the probability that we should select the related policy.
+    '''
     def __init__(self, policy_names):
 
 	# Maximum time of looking around
@@ -100,7 +107,9 @@ class Agent:
             self.policy_values = [x + y for x, y in zip(self.policy_values, observations)]
 
 def time_to_observation(time, attention, nr_policies, index):
-
+        '''
+        Translates the time into an observation with which we can increase the score. Return the observation.
+        '''
 	time = max(0, min(attention, time))
 	fitness = float(attention - time)/float(attention)
 
@@ -110,6 +119,10 @@ def time_to_observation(time, attention, nr_policies, index):
 	return observation
 
 def setUpCam():
+    '''
+    Sets up the camera to take pictures in a specific manner. Unsubscribe cameras to be safe from
+    interference from other programs using the cameras.
+    '''
     cam_name = "camera"  # Creates an identifier for the camera subscription
     cam_type = 0  # 0 for top camera, 1 for bottom camera
     res = 1  # 320x240
@@ -124,6 +137,9 @@ def setUpCam():
     return cam
 
 def takePicture(filename):
+    '''
+    Take a picture using a camera and save it under filename to the pc.
+    '''
     cam = setUpCam()
     # image_container contains info about the image
     image_container = videoProxy.getImageRemote(cam)
@@ -136,6 +152,10 @@ def takePicture(filename):
     cv2.imwrite(filename, image)
 
 def findFace(random_enable):
+    '''
+    Depending on whether we are allowed to do random search, either keep looking around and making pictures
+    until we spot a face in a picture, or keep looking in same direction until we spot a face.
+    '''
     cam = setUpCam()
     directionList = [[0.5, 0.5],[-0.5,0.5],[-0.5,-0.5],[0.5,-0.5]]
     index=0
@@ -196,6 +216,8 @@ def findFace(random_enable):
                     return faces[0], None
 
         if random_enable:
+            # Perform random search for a face in the environment. Move in a semi random fashion
+            # by randomly look in left up, right up, right down, left down.
             isAbsolute=True
             if directionList[index][0]>0:
                 horiRand = random.uniform(0,directionList[index][0])
@@ -214,7 +236,10 @@ def findFace(random_enable):
                 index=0
 
 def faceGaze(face):
-
+    '''
+    Perform face gaze behaviour: center on the earlier spotted face, try to see if it is still there and
+    follow it until either time ran out, we reached the limit, or we find the desired green ball.
+    '''
     tts.say("Testing direction")
     print '\n=== get Gaze ===\n'
     begin_time = time.time()
@@ -292,7 +317,6 @@ def faceGaze(face):
     Follow gaze step by step
     '''
 
-    ### TODO: follow the gaze step by step
     # calc. angle per step
     turn_step_angle_x = float(turnAngle_x/5.0)
     turn_step_angle_y = float(turnAngle_y/5.0)
@@ -345,8 +369,7 @@ def faceGaze(face):
             tts.say("turn limit")
             return 20
 
-        ## TODO: Object detection for ball
-        print 'Looing for ball...'
+        print 'Looking for ball...'
         time_before_ball = time.time() - tm1
         getBall = findBall()
         time_1 = time.time()
@@ -391,15 +414,12 @@ def faceGaze(face):
 
     print "\n Gaze follow END - Time limit reached..."
     return 20
-'''
-# DEBUG: images
-1. 'faceimage_test.png'
-2. 'faceCenterimage.png'
-3. 'bt_faceCenterimage.png'
-4. 'save_bt_faceCenterimage.png'
-5. 'newPosition.png'
-'''
+
 def findBall():
+    '''
+    Code that searches for a ball. Snap a picture, save the picture, then check
+    if a green ball is present in it.
+    '''
     cam = setUpCam()
 
     #image_container contains iinfo about the image
@@ -460,7 +480,10 @@ def findBall():
         return None
 
 def randomGaze():
-
+    '''
+    Random gaze behaviour: look randomly around while snapping pictures at random coordinates,
+    until we snap a picture with the green ball in it. Center on the green ball when we find it.
+    '''
     isAbsolute=True
     time_taken = 0
     while (time_taken)<20:
@@ -535,6 +558,9 @@ if __name__ == "__main__":
             face, eyes =findFace(random_enable=True)
             choice = robot.get_policy()
             print 'choice:', choice
+            #Code below documented for demonstration of gaze behaviour. Under training, code below
+            #is not commented (and result= faceGaze(face) is)
+            
             # tts.say(choice)
             # if choice=="gaze-directed":
             #     index=1
