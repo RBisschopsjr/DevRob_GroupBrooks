@@ -310,7 +310,7 @@ if __name__ == "__main__":
     postureProxy.goToPosture("Sit", 0.5)
     robot = Agent(["random", "gaze-directed"])
     beliefs =[robot.get_probs()]
-    epochs=0
+    epochs=10
     try:
         motionProxy.setStiffnesses(headJointsHori, 0.8) #Set stiffness of limbs.
         motionProxy.setStiffnesses(headJointsVerti,0.8)
@@ -320,18 +320,17 @@ if __name__ == "__main__":
             choice = robot.get_policy()
             if choice=="gaze-directed":
                 index=1
-                result=faceGaze(face)
-                #result=10+random.randint(-5,5)
+                #result=faceGaze(face)
+                result=10+random.randint(-5,5)
             else:
                 index=0
-                #result=15+random.randint(-5,5)
-                result=randomGaze()
+                result=15+random.randint(-5,5)
+                #result=randomGaze()
                 
             observation = time_to_observation(result,robot.attention,2,index)
             #observation[index] = policy_eval
             robot.update_policies(observation)
             belief=robot.get_probs()
-            belief = belief
             beliefs.append(belief)
             
             #tts.say("Time was")
